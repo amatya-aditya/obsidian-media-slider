@@ -1,0 +1,28 @@
+# vscode
+.vscode 
+
+# Intellij
+*.iml
+.idea
+
+# npm
+node_modules
+
+# Don't include the compiled main.js file in the repo.
+# They should be uploaded to GitHub releases instead.
+main.js
+
+# styles.css is generated and should therefore also not be
+# uploaded to the repo. Same goes for main.css if it is
+# somehow generated but not renamed
+main.css
+styles.css
+
+# Exclude sourcemaps
+*.map
+
+# obsidian
+data.json
+
+# Exclude macOS Finder (System Explorer) View States
+.DS_Store
