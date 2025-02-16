@@ -1,83 +1,256 @@
-# Obsidian Image Slider
-This plugin helps you make an image slider in obsidian notes. Currently, the slides can only be swiped using touchpad of the device.
+# Media Slider Plugin User Guide
 
-https://github.com/amatya-aditya/obsidian-image-slider/assets/63241408/d7860c25-c6aa-4037-9120-ad9ddc5cea40
- 
-## Installation
-1. Using BRAT Plugin [Find more about BRAT Plugin]([url](https://tfthacker.com/Obsidian+Plugins+by+TfTHacker/BRAT+-+Beta+Reviewer's+Auto-update+Tool/Quick+guide+for+using+BRAT))
-	1. Install BRAT from the Community Plugins in Obsidian
-	2. Get the link to the GitHub repository you want to test. The plugin developer can provide you with this link.
-		`It will look something like: (https://github.com/amatya-aditya/obsidian-image-slider/releases)`
-	3. Open the command palette and run the command BRAT: Add a beta plugin for testing (If you want the plugin version to be frozen, use the command BRAT: Add a beta plugin with frozen version based on a release tag.)
-	4. Using the link from step 2, copy that into the modal that opens up
-	5. Click on Add Plugin -- wait a few seconds and BRAT will tell you what is going on
-	6. After BRAT confirms the installation, in Settings go to the Community plugins tab.
-	7. Refresh the list of plugins
-	8. Find the beta plugin you just installed and Enable it.
+The Media Slider Plugin is a powerful tool for displaying images, videos, audio files, PDFs, and even Markdown content in a beautiful, interactive slider within Obsidian. In addition to the basic slideshow features, this plugin supports interactive notes, drawing annotations, audio/video visualizers, and a variety of smooth transition effects. This guide will walk you through the features and explain how to set everything up.
 
-2. Manual process
 
-	1. Navigate to the releases tab [Obsidian Image Slider](https://github.com/amatya-aditya/obsidian-image-slider/releases)
-	2. Download the main.js, mainfest.ts and styles.css of the latest releases.
-	3. Navigate to the directory of obsidian plugin inside your vault. It should look like this: .obsidian/plugins
-	4. Create a new folder and rename it as obsidian-image-slider inside the plugin folder and move those three files into that folder.
-	5. Refresh the list of plugins, find the Image slider in that list, and finally enable it.
 
-# Usuage
+## 1. Overview
 
-It can be used for both local as well as for cloud images. For local images, you can use it as follows:
+The Media Slider Plugin allows you to showcase your media files in a dynamic slider. With a few lines of configuration in your Obsidian notes, you can display media with smooth transitions, add interactive notes, draw on images, and even enable audio/video visualizations. It’s designed to be highly customizable and user-friendly.
+
+
+## 2. Installation
+
+The plugin is available through Obsidian as a community plugin.
+
+###Manual installation
+
+    Download the latest release files (manifest.json, styles.css, main.js) from the Releases page.
+    Create a folder named "dataview-autocompletion" in the Obsidian plugins folder (.obsidian/plugins).
+    Copy the files from step 1 into the new folder.
+    Enable the plugin in the Obsidian settings under the "Community plugins" section. You might have to restart Obsidian to rsee the plugin.
+
+
+## 3. Creating a Media Slider
+
+To create a slider in your note, wrap your media list in a code block tagged with media-slider. For example:
+
+```media-slider
+---
+sliderId: my-slider
+carouselShowThumbnails: true
+thumbnailPosition: bottom
+captionMode: overlay
+autoplay: false
+slideshowSpeed: 5
+width: 100%
+height: 300px
+transitionEffect: fade
+transitionDuration: 500
+enhancedView: true
+interactiveNotes: true
+---
+
+![[image1.png]]
+![[video1.mp4]]
+![[audio1.mp3]]
+![](https://dfstudio-d420.kxcdn.com/wordpress/wp-content/uploads/2019/06/digital_camera_photo-1080x675.jpg)
+![[some.pdf]]
+![[gif1.gif]]
 
 ```
-```image-slider-8
-![[Pasted image 20231103120023.png]]
-![[Pasted image 20231103120114.png]]
-![[Pasted image 20231103120044.png]]
-![[Pasted image 20231103170316.png]]
-![[Pasted image 20231103120114.png]]
-![[Pasted image 20231104163420.png]]
-![[Pasted image 20231104163429.png]]
-![[Pasted image 20231104163453.png]]
+
+- **YAML Metadata:**  
+  The section between the `---` lines is used to configure slider behavior (see next section).
+
+- **Media Files:**  
+  Each media file is listed on a new line using Obsidian’s link syntax. You can include images, videos, audio files, PDFs, or Markdown files.
+
+---
+
+## 4. YAML Metadata Options
+
+Inside the YAML block at the top of your media-slider code block, you can customize various options:
+
+- **sliderId:**  
+  A unique identifier for the slider. If not set, a default ID is generated.
+  
+- **carouselShowThumbnails:**  
+  `true` or `false` to show thumbnails below (or beside) the slider.
+  
+- **thumbnailPosition:**  
+  Choose from `top`, `bottom`, `left`, or `right`.
+  
+- **captionMode:**  
+  Set to `overlay` (caption appears on top of the media) or `below` (caption appears in a separate container).
+  
+- **autoplay:**  
+  Enable automatic playback of the slideshow (`true` or `false`).
+  
+- **slideshowSpeed:**  
+  Time (in seconds) between slides during autoplay.
+  
+- **width & height:**  
+  Specify the dimensions of your slider (e.g., `"100%"` or `"300px"`).
+  
+- **transitionEffect:**  
+  Select the transition effect (see [Transition Effects](#transition-effects) below).
+  
+- **transitionDuration:**  
+  Duration (in milliseconds) of the transition effect.
+  
+- **enhancedView:**  
+  If `true`, displays additional buttons for fullscreen mode and a copy button that copies the Markdown image link.
+  
+- **interactiveNotes:**  
+  Enables an interactive notes panel for each media slide.
+
+---
+
+## 5. Supported Media Formats
+
+The plugin supports a variety of file types:
+
+- **Images:** PNG, JPG, JPEG, GIF  
+- **Videos:** MP4, WebM  
+- **Audio:** MP3, OGG, WAV  
+- **PDFs:** Displayed in an iframe  
+- **Markdown Files:** Rendered within the slider
+
+If a file type isn’t directly supported, a simple link will be provided.
+
+---
+
+## 6. Transition Effects
+
+You can choose from multiple transition effects to create smooth and appealing animations between slides. Set the `transitionEffect` option in your YAML block to one of the following:
+
+- **fade:**   
+  Fades out the current slide before fading in the next.
+  
+- **slide:**  
+  Slides the current image out and the next one in from the side.
+  
+- **zoom:**  
+  Zooms out the current slide and then zooms in the next.
+  
+- **slide-up:**  
+  Moves the slide upward out of view, with the next slide coming up from below.
+  
+- **slide-down:**  
+  Moves the slide downward out of view, with the next slide coming from above.
+  
+- **flip:**  
+  Flips the slide horizontally during transition.
+  
+- **flip-vertical:**  
+  Flips the slide vertically.
+  
+- **rotate:**  
+  Rotates the slide slightly before showing the next slide.
+  
+- **blur:**  
+  Blurs the current slide during transition.
+  
+- **squeeze:**  
+  Applies a horizontal squeeze (scaleX) effect.
+
+*Tip:* Adjust the `transitionDuration` to control how fast or slow these effects occur.
+
+---
+
+## 7. Enhanced View
+
+When `enhancedView` is enabled, you get two extra features:
+
+- **Fullscreen Button:**  
+  Click the ⛶ button to toggle fullscreen mode for a more immersive viewing experience.
+  
+- **Copy Button:**  
+  Click the 📋 button to copy the Markdown image link (formatted like `![[image-link]]`) to your clipboard. This is useful for easily referencing media in your notes.
+
+---
+
+## 8. Interactive Notes
+
+If you enable `interactiveNotes` in your YAML metadata, a notes button (📝) will appear on the slider. Clicking it will display a text area where you can add or edit notes specific to the current slide. These notes are saved persistently and will appear again when you return to that slide.
+
+---
+
+## 9. Drawing Annotations
+
+If you enable drawing annotations in the global plugin settings, a drawing button (✏️) will appear. Here’s how it works:
+
+- **Start Drawing:**  
+  Click the ✏️ button to enter drawing mode. You can annotate directly on the current image.
+  
+- **Save Drawing:**  
+  Once done, click the button (which will change to a 💾 icon) to save your annotation.
+  
+- **Clear Drawing:**  
+  A trash icon (🗑️) will appear if an annotation exists. Click it to remove the annotation.
+
+---
+
+## 10. Visualizer for Audio/Video
+
+For media files that support audio or video, you can enable a wave-like visualizer:
+
+- **Enable Visualizer:**  
+  In the global settings, toggle **Enable Visualizer** to `true`.
+  
+- **Customization:**  
+  You can set the `visualizerColor` (any valid CSS color) and `visualizerHeight` (e.g., `"50px"`) from the plugin settings.
+
+This feature creates a dynamic visualization (like an audio waveform) over the media during playback.
+
+---
+
+## 11. Thumbnails and Navigation
+
+- **Thumbnails:**  
+  When enabled via `carouselShowThumbnails`, small preview images (or placeholders for non-image media) are displayed either below, above, or beside the slider based on the `thumbnailPosition` option. Click a thumbnail to jump to that slide.
+
+- **Navigation Buttons:**  
+  Large arrows (⮜ and ⮞) are displayed on either side of the slider to move to the previous or next slide.
+  
+- **Keyboard and Touch Controls:**  
+  You can navigate slides using the left/right arrow keys, mouse wheel, or touch gestures on mobile devices.
+
+---
+
+## 12. Automatic Slideshow
+
+If you set the `slideshowSpeed` option to a value greater than 0, the slider will automatically advance to the next slide after the specified number of seconds. This is ideal for presentations or unattended displays.
+
+---
+
+## 13. Troubleshooting & Tips
+
+- **Media Not Showing:**  
+  Ensure that the media file paths are correct and that the files exist in your vault. Use Obsidian’s internal link syntax (e.g., `![[image.png]]`) for best results.
+  
+- **Transition Issues:**  
+  If a transition doesn’t appear as expected, try adjusting the `transitionDuration` or choose a different `transitionEffect`.
+  
+- **Copy Button Not Working:**  
+  The copy button is designed to simply copy the Markdown image link to your clipboard. Ensure your browser supports the Clipboard API.
+  
+- **Customization:**  
+  Global settings for drawing annotations and visualizer options are available in the plugin’s settings tab. Adjust these to fit your workflow.
+  
+- **Full Documentation:**  
+  If you need more details, consider reading the inline comments in the source code for deeper technical insights.
+
+---
+
+## Conclusion
+
+The Media Slider Plugin is designed to be both flexible and easy to use. By adjusting the YAML metadata in your code blocks and tweaking global settings, you can create a rich, interactive media display experience in Obsidian. Enjoy showcasing your media with smooth transitions, interactive notes, drawing annotations, and more!
+
+If you have any questions or need further assistance, please consult the Obsidian community forums or the plugin’s support channels.
+
+Happy sliding!
+
+---
+
+This document should help both new and experienced users understand and enjoy all the features available in the Media Slider Plugin.
+
+```json
+{
+    "fundingUrl": "https://buymeacoffee.com"
+}
 ```
 
-For images from the internet, you can use it as follows:
 
-```
-```image-slider-5
-![](https://picsum.photos/id/1/200/300)
-![](https://picsum.photos/id/2/200/300)
-![](https://picsum.photos/id/3/200/300)
-![](https://picsum.photos/id/4/200/300)
-![](https://picsum.photos/id/5/200/300)
 
-```
-
-The number '5' means it can show 5 images. You can put 20 images in each code-block. 
-
-	'1': 1,
-	'2': 2,
-	'3': 3,
-	'4': 4,
-	'5': 5,
-	'6': 6,
-	'7': 7,
-	'8': 8,
-	'9': 9,
-	'10': 10,
-	'11': 11,
-	'12': 12,
-	'13': 13,
-	'14': 14,
-	'15': 15,
-	'16': 16,
-	'17': 17,
-	'18': 18,
-	'19': 19,
-	'20': 20
-## Roadmap:
-
-- Using next and previous button to navigate in between the images
-- Using dot like slide-controllers for jumping to exact images you're looking for.
-- Image captions
-- Overlay text on images
-
-This plugin is heavily inspired by obsidian-image-layouts plugin.
