@@ -13,18 +13,18 @@ The Media Slider Plugin allows you to showcase your media files in a dynamic sli
 
 The plugin is available through Obsidian as a community plugin.
 
-###Manual installation
+### Manual installation
+Download the latest release files (manifest.json, styles.css, main.js) from the Releases page.
+Create a folder named "media-slider" in the Obsidian plugins folder (.obsidian/plugins).
+Copy the files from step 1 into the new folder.
+Enable the plugin in the Obsidian settings under the "Community plugins" section. 
 
-    Download the latest release files (manifest.json, styles.css, main.js) from the Releases page.
-    Create a folder named "dataview-autocompletion" in the Obsidian plugins folder (.obsidian/plugins).
-    Copy the files from step 1 into the new folder.
-    Enable the plugin in the Obsidian settings under the "Community plugins" section. You might have to restart Obsidian to rsee the plugin.
 
 
 ## 3. Creating a Media Slider
 
 To create a slider in your note, wrap your media list in a code block tagged with media-slider. For example:
-
+```
 ```media-slider
 ---
 sliderId: my-slider
