@@ -230,28 +230,10 @@ If you set the `slideshowSpeed` option to a value greater than 0, the slider wil
 - **Customization:**  
   Global settings for drawing annotations and visualizer options are available in the plugin’s settings tab. Adjust these to fit your workflow.
   
-- **Full Documentation:**  
-  If you need more details, consider reading the inline comments in the source code for deeper technical insights.
-
----
-
-## Conclusion
 
 The Media Slider Plugin is designed to be both flexible and easy to use. By adjusting the YAML metadata in your code blocks and tweaking global settings, you can create a rich, interactive media display experience in Obsidian. Enjoy showcasing your media with smooth transitions, interactive notes, drawing annotations, and more!
 
-If you have any questions or need further assistance, please consult the Obsidian community forums or the plugin’s support channels.
-
 Happy sliding!
-
----
-
-This document should help both new and experienced users understand and enjoy all the features available in the Media Slider Plugin.
-
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
 
 
 
