@@ -14,10 +14,11 @@ The Media Slider Plugin allows you to showcase your media files in a dynamic sli
 The plugin is available through Obsidian as a community plugin.
 
 ### Manual installation
-Download the latest release files (manifest.json, styles.css, main.js) from the Releases page.
-Create a folder named "media-slider" in the Obsidian plugins folder (.obsidian/plugins).
-Copy the files from step 1 into the new folder.
-Enable the plugin in the Obsidian settings under the "Community plugins" section. 
+
+1. Download the latest release files (manifest.json, styles.css, main.js) from the Releases page.
+2. Create a folder named "media-slider" in the Obsidian plugins folder (.obsidian/plugins).
+3. Copy the files from step 1 into the new folder.
+4. Enable the plugin in the Obsidian settings under the "Community plugins" section. 
 
 
 
