@@ -4,9 +4,9 @@
 	"name": "Media Slider",
 	"version": "1.0.0",
 	"minAppVersion": "0.12.0",
-	"description": "A media slider for images, pdfs, gifs, audios, videos, and pdfs in Obsidian.",
+	"description": "A media slider for images, pdfs, gifs, audios, videos, and pdfs.",
 	"author": "Aditya Amatya",
 	"authorUrl": "https://github.com/amatya-aditya",
-	"fundingUrl": "https://buymeacoffee.com/adityaamatq",
+	"fundingUrl": "https://buymeacoffee.com/amatya_aditya",
 	"isDesktopOnly": false
 }
