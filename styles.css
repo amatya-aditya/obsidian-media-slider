@@ -165,3 +165,445 @@
 .fullscreen_style {
 	height: 85vh;
 }
+
+
+/* styles.css */
+
+/* Drawing Annotation Styles */
+.drawing-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 10;
+	pointer-events: auto;
+}
+
+.drawing-toolbar {
+	position: absolute;
+	top: 5px;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: rgba(0, 0, 0, 0.5);
+	border-radius: 4px;
+	padding: 4px;
+	display: flex;
+	gap: 4px;
+	z-index: 20;
+}
+
+.drawing-btn {
+	font-size: 14px;
+	background: rgba(0, 0, 0, 0.5);
+	color: #fff;
+	border: none;
+	cursor: pointer;
+	padding: 4px;
+	border-radius: 4px;
+}
+
+.drawing-btn:hover {
+	background: rgba(0, 0, 0, 0.7);
+}
+
+.active-tool {
+	background: rgba(0, 0, 0, 0.7);
+}
+
+.drawing-dropdown {
+	position: relative;
+	display: inline-block;
+	font-size: 14px;
+	background: rgba(0, 0, 0, 0.5);
+	border: none;
+	border-radius: 4px;
+}
+
+.drawing-dropdown-summary {
+	list-style: none;
+	cursor: pointer;
+	background: transparent;
+	color: #fff;
+	outline: none;
+}
+
+.drawing-dropdown-options {
+	display: flex;
+	flex-direction: column;
+	position: absolute;
+	top: 100%;
+	left: 0;
+	background: rgba(0, 0, 0, 0.5);
+	border: none;
+	border-radius: 4px;
+	z-index: 30;
+}
+
+.drawing-color-input,
+.drawing-linewidth-input {
+	border: none;
+	cursor: pointer;
+}
+
+/* Visualizer Styles */
+.visualizer-canvas {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	height: var(--visualizer-height, 80px);
+	pointer-events: none;
+	z-index: 100;
+}
+
+/* Media Slider Styles */
+.media-slider-wrapper {
+	position: relative;
+}
+
+.flex-row {
+	display: flex;
+	flex-direction: row;
+}
+
+.flex-column {
+	display: flex;
+	flex-direction: column;
+}
+
+.center {
+	align-items: center;
+	justify-content: center;
+}
+
+.slider-content {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	width: var(--slider-width, 100%);
+}
+
+.slider-container {
+	width: var(--slider-width, 100%);
+	height: var(--slider-height, 300px);
+	opacity: 1;
+	position: relative;
+	overflow: hidden;
+}
+
+/* Caption Container */
+.slider-caption-container {
+	/* Customize caption container as needed */
+}
+
+/* Thumbnail Styles */
+.thumbnail-container.horizontal {
+	width: var(--thumbnail-width, 100%);
+	overflow-x: auto;
+	white-space: nowrap;
+	margin: 10px 0;
+}
+
+.thumbnail-container.vertical {
+	height: var(--thumbnail-height, 300px);
+	overflow-y: auto;
+}
+
+.thumbnail {
+	cursor: pointer;
+}
+
+.vertical-thumb {
+	/* Styles for vertical thumbnail */
+}
+
+/* Buttons */
+.fullscreen-btn,
+.copy-btn,
+.notes-toggle-btn,
+.drawing-toggle-btn,
+.clear-drawing-btn,
+.slider-btn {
+	position: absolute;
+	z-index: 110;
+	background: rgba(0, 0, 0, 0.5);
+	color: #fff;
+	border: none;
+	cursor: pointer;
+	padding: 4px;
+	border-radius: 4px;
+	font-size: 14px;
+}
+
+.fullscreen-btn {
+	top: 10px;
+	right: 10px;
+}
+
+.copy-btn {
+	top: 10px;
+	right: 70px;
+}
+
+.notes-toggle-btn {
+	top: 10px;
+	left: 10px;
+}
+
+.notes-container {
+	position: absolute;
+	bottom: 10px;
+	left: 10px;
+	width: calc(100% - 20px);
+	background: rgba(255, 255, 255, 0.8);
+	padding: 5px;
+	display: none;
+}
+
+.notes-container.visible {
+	display: block;
+}
+
+.notes-textarea {
+	width: 100%;
+	height: 60px;
+}
+
+.notes-save-btn {
+	margin-top: 5px;
+}
+
+.drawing-toggle-btn {
+	top: 10px;
+	right: 36px;
+}
+
+.clear-drawing-btn {
+	top: 10px;
+	right: 110px;
+}
+
+/* Navigation Buttons */
+.slider-btn.prev {
+	top: 50%;
+	left: 10px;
+	transform: translateY(-50%);
+}
+
+.slider-btn.next {
+	top: 50%;
+	right: 10px;
+	transform: translateY(-50%);
+}
+
+/* Drawing Overlay */
+.drawing-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+/* Transition Effects */
+/* The transition duration is set via the CSS variable --transition-duration */
+
+.transition-fade-out {
+	transition: opacity var(--transition-duration)ms ease-in-out;
+	opacity: 0;
+}
+
+.transition-fade-in {
+	transition: opacity var(--transition-duration)ms ease-in-out;
+	opacity: 1;
+}
+
+.transition-slide-next-out {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: translateX(-100%);
+}
+
+.transition-slide-prev-out {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: translateX(100%);
+}
+
+.transition-slide-next-in,
+.transition-slide-prev-in {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: translateX(0);
+}
+
+.transition-zoom-out {
+	transition: transform var(--transition-duration)ms ease-in-out, opacity var(--transition-duration)ms ease-in-out;
+	transform: scale(0.8);
+	opacity: 0;
+}
+
+.transition-zoom-in {
+	transition: transform var(--transition-duration)ms ease-in-out, opacity var(--transition-duration)ms ease-in-out;
+	transform: scale(1);
+	opacity: 1;
+}
+
+.transition-slide-up-out {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: translateY(-100%);
+}
+
+.transition-slide-up-in {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: translateY(0);
+}
+
+.transition-slide-down-out {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: translateY(100%);
+}
+
+.transition-slide-down-in {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: translateY(0);
+}
+
+.transition-flip-out {
+	transition: transform var(--transition-duration)ms ease-in-out, opacity var(--transition-duration)ms ease-in-out;
+	transform: rotateY(90deg);
+	opacity: 0;
+}
+
+.transition-flip-in {
+	transition: transform var(--transition-duration)ms ease-in-out, opacity var(--transition-duration)ms ease-in-out;
+	transform: rotateY(0deg);
+	opacity: 1;
+}
+
+.transition-flip-vertical-out {
+	transition: transform var(--transition-duration)ms ease-in-out, opacity var(--transition-duration)ms ease-in-out;
+	transform: rotateX(90deg);
+	opacity: 0;
+}
+
+.transition-flip-vertical-in {
+	transition: transform var(--transition-duration)ms ease-in-out, opacity var(--transition-duration)ms ease-in-out;
+	transform: rotateX(0deg);
+	opacity: 1;
+}
+
+.transition-rotate-out {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: rotate(15deg);
+}
+
+.transition-rotate-in {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: rotate(0deg);
+}
+
+.transition-blur-out {
+	transition: filter var(--transition-duration)ms ease-in-out;
+	filter: blur(10px);
+}
+
+.transition-blur-in {
+	transition: filter var(--transition-duration)ms ease-in-out;
+	filter: blur(0px);
+}
+
+.transition-squeeze-out {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: scaleX(0.8);
+}
+
+.transition-squeeze-in {
+	transition: transform var(--transition-duration)ms ease-in-out;
+	transform: scaleX(1);
+}
+
+/* Active Thumbnail */
+.active-thumbnail {
+	border: 2px solid #00ff00;
+}
+
+.slider-content {
+	width: 100%;
+  }
+  
+  .slider-container {
+	width: 100%;
+	height: 300px; /* default height; can be adjusted as needed */
+	transition: all var(--transition-duration, 500ms) ease-in-out;
+  }
+  
+  .thumbnail-container.horizontal {
+	width: 100%;
+  }
+  
+  .thumbnail-container.vertical {
+	height: 300px; /* default height for vertical thumbnails */
+  }
+  
+  .fullscreen-slider {
+	height: 85vh;
+  }
+  
+
+  .notes-container {
+	position: absolute;
+	bottom: 10px;
+	left: 10px;
+	width: calc(100% - 20px);
+	background: rgba(255, 255, 255, 0.8);
+	padding: 5px;
+	display: none;
+  }
+  
+  audio.slider-media.audio-media {
+	width: 88%;
+  }
+
+  /* 1. Canvas overlay (was inline styled in the constructor) */
+.drawing-canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 10;
+	pointer-events: auto;
+  }
+  
+  /* 2. Toolbar overlay (was inline styled in the constructor) */
+  .drawing-toolbar {
+	position: absolute;
+	top: 5px;
+	left: 50%;
+	transform: translateX(-50%);
+	background-color: rgba(0, 0, 0, 0.5);
+	border-radius: 4px;
+	padding: 4px;
+	display: flex;
+	gap: 4px;
+	z-index: 20;
+  }
+  
+  /* 3. Geometric tools dropdown and its summary (was inline styled in createToolbar) */
+  .drawing-dropdown {
+	position: relative;
+	display: inline-block;
+	font-size: 14px;
+	background: rgba(0, 0, 0, 0.5);
+	border: none;
+	border-radius: 4px;
+  }
+  
+  .drawing-dropdown-summary {
+	list-style: none;
+	cursor: pointer;
+	background: transparent;
+	color: #fff;
+	outline: none;
+  }

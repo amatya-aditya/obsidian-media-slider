@@ -1,3 +1,4 @@
+// drawing.ts
 export type DrawingTool = "freehand" | "line" | "rectangle" | "circle" | "eraser" | "laser";
 
 export class DrawingAnnotation {
@@ -21,13 +22,8 @@ export class DrawingAnnotation {
 
 		// Create and append canvas overlay.
 		this.canvas = document.createElement("canvas");
-		this.canvas.style.position = "absolute";
-		this.canvas.style.top = "0";
-		this.canvas.style.left = "0";
-		this.canvas.style.width = "100%";
-		this.canvas.style.height = "100%";
-		this.canvas.style.zIndex = "10";
-		this.canvas.style.pointerEvents = "auto";
+		// Apply styling via CSS class.
+		this.canvas.classList.add("drawing-canvas");
 		this.container.appendChild(this.canvas);
 		this.resizeCanvas();
 
@@ -37,19 +33,8 @@ export class DrawingAnnotation {
 
 		// Create toolbar overlay.
 		this.toolbar = document.createElement("div");
-		// Center the toolbar at the top of the container.
-		this.toolbar.style.position = "absolute";
-		this.toolbar.style.top = "5px";
-		this.toolbar.style.left = "50%";
-		this.toolbar.style.transform = "translateX(-50%)";
-		// Use dark background with 50% opacity and rounded corners.
-		this.toolbar.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-		this.toolbar.style.borderRadius = "4px";
-		this.toolbar.style.padding = "4px";
-		this.toolbar.style.display = "flex";
-		this.toolbar.style.gap = "4px";
-		this.toolbar.style.zIndex = "20";
-        this.toolbar.className = "drawing-toolbar";
+		// Apply styling via CSS class.
+		this.toolbar.classList.add("drawing-toolbar");
 		this.container.appendChild(this.toolbar);
 		this.createToolbar();
 
@@ -70,73 +55,38 @@ export class DrawingAnnotation {
 	}
 
 	private resetToolbarHighlights(): void {
-		// Set each button's background to the default dark style.
+		// Remove active class from each button.
 		Array.from(this.toolbar.children).forEach(child => {
-			(child as HTMLElement).style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+			(child as HTMLElement).classList.remove("active-tool");
 		});
 	}
 
 	private createToolbar(): void {
-		// Common button style.
-		const btnStyle = {
-			fontSize: "14px",
-			background: "rgba(0, 0, 0, 0.5)",
-			color: "#fff",
-			border: "none",
-			cursor: "pointer",
-			padding: "4px",
-			borderRadius: "4px"
-		};
-
-		// Helper to apply styles.
-		const applyStyles = (el: HTMLElement, styles: { [key: string]: string }): void => {
-			for (const key in styles) {
-				el.style[key] = styles[key];
-			}
-		};
-
 		// Freehand button.
 		const freehandBtn = document.createElement("button");
 		freehandBtn.textContent = "✏️";
 		freehandBtn.title = "Freehand";
-		applyStyles(freehandBtn, btnStyle);
+		freehandBtn.classList.add("drawing-btn", "freehand-btn");
 		freehandBtn.onclick = () => {
 			this.currentTool = "freehand";
 			this.resetToolbarHighlights();
-			freehandBtn.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+			freehandBtn.classList.add("active-tool");
 		};
 		this.toolbar.appendChild(freehandBtn);
 
 		// Geometric tools dropdown.
 		const geomDropdown = document.createElement("details");
-		geomDropdown.style.position = "relative";
-		geomDropdown.style.display = "inline-block";
-		geomDropdown.style.fontSize = "14px";
-		geomDropdown.style.background = "rgba(0, 0, 0, 0.5)";
-		geomDropdown.style.border = "none";
-		geomDropdown.style.borderRadius = "4px";
+		geomDropdown.classList.add("drawing-dropdown");
 		// Summary shows current geometric tool (default "line").
 		const geomSummary = document.createElement("summary");
 		geomSummary.textContent = "➖"; // default for line
 		geomSummary.title = "Geometric Tools (Line, Rect, Circle)";
-		geomSummary.style.listStyle = "none";
-		geomSummary.style.cursor = "pointer";
-		geomSummary.style.background = "transparent";
-		geomSummary.style.color = "#fff";
-		geomSummary.style.outline = "none";
+		geomSummary.classList.add("drawing-dropdown-summary");
 		geomDropdown.appendChild(geomSummary);
 
 		// Container for dropdown options.
 		const geomOptions = document.createElement("div");
-		geomOptions.style.display = "flex";
-		geomOptions.style.flexDirection = "column";
-		geomOptions.style.position = "absolute";
-		geomOptions.style.top = "100%";
-		geomOptions.style.left = "0";
-		geomOptions.style.background = "rgba(0, 0, 0, 0.5)";
-		geomOptions.style.border = "none";
-		geomOptions.style.borderRadius = "4px";
-		geomOptions.style.zIndex = "30";
+		geomOptions.classList.add("drawing-dropdown-options");
 
 		const geomTools: { tool: DrawingTool; icon: string; label: string }[] = [
 			{ tool: "line", icon: "➖", label: "Line" },
@@ -148,7 +98,7 @@ export class DrawingAnnotation {
 			const btn = document.createElement("button");
 			btn.textContent = opt.icon;
 			btn.title = opt.label;
-			applyStyles(btn, { fontSize: "14px", padding: "2px", border: "none", background: "transparent", color: "#fff", cursor: "pointer" });
+			btn.classList.add("drawing-btn", "geom-tool-btn");
 			btn.onclick = (e) => {
 				e.stopPropagation();
 				this.currentTool = opt.tool;
@@ -165,11 +115,11 @@ export class DrawingAnnotation {
 		const eraserBtn = document.createElement("button");
 		eraserBtn.textContent = "🧽";
 		eraserBtn.title = "Eraser";
-		applyStyles(eraserBtn, btnStyle);
+		eraserBtn.classList.add("drawing-btn", "eraser-btn");
 		eraserBtn.onclick = () => {
 			this.currentTool = "eraser";
 			this.resetToolbarHighlights();
-			eraserBtn.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+			eraserBtn.classList.add("active-tool");
 		};
 		this.toolbar.appendChild(eraserBtn);
 
@@ -177,11 +127,11 @@ export class DrawingAnnotation {
 		const laserBtn = document.createElement("button");
 		laserBtn.textContent = "🔦";
 		laserBtn.title = "Laser (temporary)";
-		applyStyles(laserBtn, btnStyle);
+		laserBtn.classList.add("drawing-btn", "laser-btn");
 		laserBtn.onclick = () => {
 			this.currentTool = "laser";
 			this.resetToolbarHighlights();
-			laserBtn.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+			laserBtn.classList.add("active-tool");
 		};
 		this.toolbar.appendChild(laserBtn);
 
@@ -189,7 +139,7 @@ export class DrawingAnnotation {
 		const colorInput = document.createElement("input");
 		colorInput.type = "color";
 		colorInput.value = this.color;
-		applyStyles(colorInput, { width: "30px", height: "30px", border: "none", cursor: "pointer" });
+		colorInput.classList.add("drawing-color-input");
 		colorInput.onchange = () => {
 			this.color = colorInput.value;
 		};
@@ -201,7 +151,7 @@ export class DrawingAnnotation {
 		widthInput.min = "1";
 		widthInput.max = "10";
 		widthInput.value = this.lineWidth.toString();
-		applyStyles(widthInput, { width: "40px", border: "none", background: "rgba(0,0,0,0.5)", color: "#fff", textAlign: "center" });
+		widthInput.classList.add("drawing-linewidth-input");
 		widthInput.onchange = () => {
 			this.lineWidth = Number(widthInput.value);
 		};

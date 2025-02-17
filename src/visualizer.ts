@@ -1,3 +1,4 @@
+// visualizer.ts
 export interface VisualizerOptions {
 	/** Height of the visualizer canvas (e.g., "80px") */
 	height?: string;
@@ -30,16 +31,12 @@ export class Visualizer {
 
 		// Create a canvas overlay.
 		this.canvas = document.createElement("canvas");
-		this.canvas.style.position = "absolute";
-		this.canvas.style.bottom = "0";
-		this.canvas.style.left = "0";
-		this.canvas.style.width = "100%";
-		this.canvas.style.height = this.options.height ?? "80px";
-		this.canvas.style.pointerEvents = "none";
-		this.canvas.style.zIndex = "100";
+		this.canvas.classList.add("visualizer-canvas");
+		// Set CSS variable for height.
+		this.canvas.style.setProperty('--visualizer-height', this.options.height || "100px");
 		// Set explicit dimensions.
 		this.canvas.width = container.clientWidth;
-		this.canvas.height = parseInt(this.options.height ?? "80", 10);
+		this.canvas.height = parseInt(this.options.height || "80", 10);
 		this.canvasCtx = this.canvas.getContext("2d")!;
 		container.appendChild(this.canvas);
 

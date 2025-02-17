@@ -13,19 +13,18 @@ The Media Slider Plugin allows you to showcase your media files in a dynamic sli
 
 The plugin is available through Obsidian as a community plugin.
 
-### Manual installation
+###Manual installation
 
-1. Download the latest release files (manifest.json, styles.css, main.js) from the Releases page.
-2. Create a folder named "media-slider" in the Obsidian plugins folder (.obsidian/plugins).
-3. Copy the files from step 1 into the new folder.
-4. Enable the plugin in the Obsidian settings under the "Community plugins" section. 
-
+    Download the latest release files (manifest.json, styles.css, main.js) from the Releases page.
+    Create a folder named "dataview-autocompletion" in the Obsidian plugins folder (.obsidian/plugins).
+    Copy the files from step 1 into the new folder.
+    Enable the plugin in the Obsidian settings under the "Community plugins" section. You might have to restart Obsidian to rsee the plugin.
 
 
 ## 3. Creating a Media Slider
 
 To create a slider in your note, wrap your media list in a code block tagged with media-slider. For example:
-```
+
 ```media-slider
 ---
 sliderId: my-slider
@@ -230,10 +229,28 @@ If you set the `slideshowSpeed` option to a value greater than 0, the slider wil
 - **Customization:**  
   Global settings for drawing annotations and visualizer options are available in the plugin’s settings tab. Adjust these to fit your workflow.
   
+- **Full Documentation:**  
+  If you need more details, consider reading the inline comments in the source code for deeper technical insights.
+
+---
+
+## Conclusion
 
 The Media Slider Plugin is designed to be both flexible and easy to use. By adjusting the YAML metadata in your code blocks and tweaking global settings, you can create a rich, interactive media display experience in Obsidian. Enjoy showcasing your media with smooth transitions, interactive notes, drawing annotations, and more!
 
+If you have any questions or need further assistance, please consult the Obsidian community forums or the plugin’s support channels.
+
 Happy sliding!
+
+---
+
+This document should help both new and experienced users understand and enjoy all the features available in the Media Slider Plugin.
+
+```json
+{
+    "fundingUrl": "https://buymeacoffee.com"
+}
+```
 
 
 

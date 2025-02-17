@@ -1,3 +1,4 @@
+// main.ts
 import { Plugin, PluginSettingTab, App, Setting, MarkdownPostProcessorContext, TFile, MarkdownRenderer, MarkdownView } from "obsidian";
 import { compressImage } from "./src/compression";
 import { NotesManager } from "./src/notes";
@@ -50,8 +51,9 @@ export default class MediaSliderPlugin extends Plugin {
 	// --- Force Refresh for Immediate Settings Effect ---
 	refreshSliders() {
 		this.app.workspace.getLeavesOfType("markdown").forEach(leaf => {
-			if (leaf.view instanceof MarkdownView) {
-				(leaf.view as any).load();
+			// Instead of casting to any, check if leaf.view is a MarkdownView with a load method.
+			if (leaf.view instanceof MarkdownView && typeof leaf.view.load === "function") {
+				leaf.view.load();
 			}
 		});
 	}
@@ -137,13 +139,15 @@ export default class MediaSliderPlugin extends Plugin {
 		return this.getCachedResourcePath(fileName);
 	}
 
+	// --- Revised getMarkdownContent without unsafe casting ---
 	private async getMarkdownContent(fileName: string): Promise<string> {
 		if (this.markdownCache.has(fileName)) {
 			return this.markdownCache.get(fileName)!;
 		}
-		const mdFile = this.app.vault.getAbstractFileByPath(fileName) as TFile;
-		if (mdFile) {
-			const content = await this.app.vault.read(mdFile);
+		const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
+		// Check if the abstractFile is a file by verifying it has an "extension" property.
+		if (abstractFile && "extension" in abstractFile) {
+			const content = await this.app.vault.read(abstractFile);
 			this.markdownCache.set(fileName, content);
 			return content;
 		}
@@ -219,45 +223,33 @@ export default class MediaSliderPlugin extends Plugin {
 		container.empty();
 		let updateDrawingOverlay: ((mediaKey: string) => void) | undefined;
 		const sliderWrapper = container.createDiv("media-slider-wrapper");
-		sliderWrapper.style.position = "relative";
+
+		// Layout classes based on thumbnail position
 		if (settings.carouselShowThumbnails && (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right")) {
 			sliderWrapper.classList.add("flex-row");
 		} else {
-			sliderWrapper.style.display = "flex";
-			sliderWrapper.style.flexDirection = "column";
-			sliderWrapper.style.alignItems = "center";
+			sliderWrapper.classList.add("flex-column", "center");
 		}
 
 		const sliderContent = sliderWrapper.createDiv("slider-content");
-		sliderContent.style.position = "relative";
-		sliderContent.style.display = "flex";
-		sliderContent.style.flexDirection = "column";
-		sliderContent.style.alignItems = "center";
-		sliderContent.style.width = settings.width;
+		// Inline width assignment removed in favor of CSS
 
 		const sliderContainer = sliderContent.createDiv("slider-container");
-		sliderContainer.style.width = settings.width;
-		sliderContainer.style.height = settings.height;
-		sliderContainer.style.opacity = "1";
-		sliderContainer.style.position = "relative";
+		// Inline width and height removed; CSS now handles these
 
 		const captionContainer = sliderContent.createDiv("slider-caption-container");
+
 		let thumbnailContainer: HTMLElement | null = null;
 		let thumbnailEls: HTMLElement[] = [];
 		if (settings.carouselShowThumbnails) {
 			thumbnailContainer = document.createElement("div");
-			thumbnailContainer.className = "thumbnail-container";
+			thumbnailContainer.classList.add("thumbnail-container");
 			if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
 				thumbnailContainer.classList.add("vertical");
-				thumbnailContainer.style.height = settings.height;
-				thumbnailContainer.style.overflowY = "auto";
 			} else {
 				thumbnailContainer.classList.add("horizontal");
-				thumbnailContainer.style.width = settings.width;
-				thumbnailContainer.style.overflowX = "auto";
-				thumbnailContainer.style.whiteSpace = "nowrap";
-				thumbnailContainer.style.margin = "10px 0";
 			}
+			// Inline thumbnail dimension assignments removed
 			if (settings.thumbnailPosition === "top" || settings.thumbnailPosition === "left") {
 				sliderWrapper.insertBefore(thumbnailContainer, sliderContent);
 			} else if (settings.thumbnailPosition === "bottom" || settings.thumbnailPosition === "right") {
@@ -265,31 +257,23 @@ export default class MediaSliderPlugin extends Plugin {
 			}
 		}
 
-		// Declare current index and direction early so they are available for all handlers.
 		let currentIndex = 0;
 		let currentDirection: "next" | "prev" = "next";
 
-		// Enhanced view: fullscreen and copy buttons.
 		if (settings.enhancedView) {
 			const fullScreenBtn = sliderWrapper.createEl("button", { text: "⛶", cls: "fullscreen-btn" });
-			fullScreenBtn.style.position = "absolute";
-			fullScreenBtn.style.top = "10px";
-			fullScreenBtn.style.right = "10px";
 			fullScreenBtn.onclick = () => {
 				if (!document.fullscreenElement) {
 					sliderWrapper.requestFullscreen().catch(err => console.error("Error enabling fullscreen:", err));
+					sliderContainer.classList.add("fullscreen-slider");
 				} else {
 					document.exitFullscreen();
+					sliderContainer.classList.remove("fullscreen-slider");
 				}
 			};
 
 			const copyBtn = sliderWrapper.createEl("button", { text: "📋", cls: "copy-btn" });
-			copyBtn.style.position = "absolute";
-			copyBtn.style.top = "10px";
-			copyBtn.style.right = "70px";
-			copyBtn.style.zIndex = "110";
 			copyBtn.onclick = async () => {
-				// Simply copy the markdown image link from the media-slider codeblock.
 				const currentEntry = files[currentIndex];
 				let [fileName] = currentEntry.split("|").map(s => s.trim());
 				const markdownLink = `![[${fileName}]]`;
@@ -302,72 +286,44 @@ export default class MediaSliderPlugin extends Plugin {
 			};
 		}
 
-		sliderWrapper.addEventListener("fullscreenchange", () => {
-			if (document.fullscreenElement === sliderWrapper) {
-				sliderContainer.style.height = "85vh";
-			} else {
-				sliderContainer.style.height = settings.height;
-			}
-		});
-
-		// Interactive notes.
 		let notesContainer: HTMLElement | null = null;
 		let notesTextarea: HTMLTextAreaElement | null = null;
 		let notesToggleBtn: HTMLElement | null = null;
 		if (settings.interactiveNotes) {
 			notesToggleBtn = sliderWrapper.createEl("button", { text: "📝", cls: "notes-toggle-btn" });
-			notesToggleBtn.style.position = "absolute";
-			notesToggleBtn.style.top = "10px";
-			notesToggleBtn.style.left = "10px";
-			notesToggleBtn.style.zIndex = "110";
 			notesToggleBtn.onclick = () => {
 				if (notesContainer) {
-					notesContainer.style.display = notesContainer.style.display === "block" ? "none" : "block";
+					notesContainer.classList.toggle("visible");
 					const mediaKey = `${sliderId}-${files[currentIndex]}`;
-					if (notesContainer.style.display === "block" && notesTextarea) {
+					if (notesContainer.classList.contains("visible") && notesTextarea) {
 						notesTextarea.value = this.notesManager.getNote(mediaKey);
 					}
 				}
 			};
 
 			notesContainer = sliderWrapper.createDiv("notes-container");
-			notesContainer.style.position = "absolute";
-			notesContainer.style.bottom = "10px";
-			notesContainer.style.left = "10px";
-			notesContainer.style.width = "calc(100% - 20px)";
-			notesContainer.style.background = "rgba(255,255,255,0.8)";
-			notesContainer.style.padding = "5px";
-			notesContainer.style.display = "none";
-
 			notesTextarea = document.createElement("textarea");
-			notesTextarea.style.width = "100%";
-			notesTextarea.style.height = "60px";
+			notesTextarea.classList.add("notes-textarea");
 			notesTextarea.placeholder = "Add your notes here...";
 			notesContainer.appendChild(notesTextarea);
 
 			const saveNotesBtn = document.createElement("button");
 			saveNotesBtn.textContent = "💾";
-			saveNotesBtn.className = "notes-save-btn";
-			saveNotesBtn.style.marginTop = "5px";
+			saveNotesBtn.classList.add("notes-save-btn");
 			saveNotesBtn.onclick = async () => {
 				const mediaKey = `${sliderId}-${files[currentIndex]}`;
 				if (notesTextarea) {
 					await this.notesManager.setNote(mediaKey, notesTextarea.value);
 				}
-				if (notesContainer) notesContainer.style.display = "none";
+				if (notesContainer) notesContainer.classList.remove("visible");
 			};
 			notesContainer.appendChild(saveNotesBtn);
 		}
 
-		// Drawing Annotation Integration.
 		let drawingAnnotation: DrawingAnnotation | null = null;
 		let clearDrawingBtn: HTMLElement | null = null;
 		if (this.settings.enableDrawingAnnotation) {
 			const drawingToggleBtn = sliderWrapper.createEl("button", { text: "✏️", cls: "drawing-toggle-btn" });
-			drawingToggleBtn.style.position = "absolute";
-			drawingToggleBtn.style.top = "10px";
-			drawingToggleBtn.style.right = "50px";
-			drawingToggleBtn.style.zIndex = "110";
 
 			updateDrawingOverlay = (mediaKey: string) => {
 				const existingOverlay = sliderContainer.querySelector(".drawing-overlay");
@@ -378,18 +334,8 @@ export default class MediaSliderPlugin extends Plugin {
 				if (savedDrawing) {
 					const overlay = sliderContainer.createEl("img", { attr: { src: savedDrawing } });
 					overlay.classList.add("drawing-overlay");
-					overlay.style.position = "absolute";
-					overlay.style.top = "0";
-					overlay.style.left = "0";
-					overlay.style.width = "100%";
-					overlay.style.height = "100%";
-					overlay.style.pointerEvents = "none";
 					if (!clearDrawingBtn) {
 						clearDrawingBtn = sliderWrapper.createEl("button", { text: "🗑️", cls: "clear-drawing-btn" });
-						clearDrawingBtn.style.position = "absolute";
-						clearDrawingBtn.style.top = "10px";
-						clearDrawingBtn.style.right = "110px";
-						clearDrawingBtn.style.zIndex = "110";
 						clearDrawingBtn.onclick = async () => {
 							delete this.drawingData[mediaKey];
 							await this.saveDrawingData();
@@ -436,67 +382,50 @@ export default class MediaSliderPlugin extends Plugin {
 
 		container.appendChild(sliderWrapper);
 
-		// Navigation buttons.
 		const prevBtn = sliderContent.createEl("button", { text: "⮜", cls: "slider-btn prev" });
 		const nextBtn = sliderContent.createEl("button", { text: "⮞", cls: "slider-btn next" });
-		prevBtn.style.position = "absolute";
-		nextBtn.style.position = "absolute";
-		prevBtn.style.top = "50%";
-		nextBtn.style.top = "50%";
-		prevBtn.style.left = "10px";
-		nextBtn.style.right = "10px";
-		prevBtn.style.transform = "translateY(-50%)";
-		nextBtn.style.transform = "translateY(-50%)";
 
-		// Transition: hide current media.
 		const updateMediaDisplay = async () => {
+			// Remove any previous transition classes.
+			sliderContainer.classList.remove(
+				"transition-fade-out", "transition-slide-next-out", "transition-slide-prev-out", "transition-zoom-out",
+				"transition-slide-up-out", "transition-slide-down-out", "transition-flip-out", "transition-flip-vertical-out",
+				"transition-rotate-out", "transition-blur-out", "transition-squeeze-out"
+			);
+			
 			switch (settings.transitionEffect) {
 				case "fade":
-					sliderContainer.style.transition = `opacity ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.opacity = "0";
+					sliderContainer.classList.add("transition-fade-out");
 					break;
 				case "slide":
-					sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.transform = currentDirection === "next" ? "translateX(-100%)" : "translateX(100%)";
+					sliderContainer.classList.add(currentDirection === "next" ? "transition-slide-next-out" : "transition-slide-prev-out");
 					break;
 				case "zoom":
-					sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out, opacity ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.transform = "scale(0.8)";
-					sliderContainer.style.opacity = "0";
+					sliderContainer.classList.add("transition-zoom-out");
 					break;
 				case "slide-up":
-					sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.transform = "translateY(-100%)";
+					sliderContainer.classList.add("transition-slide-up-out");
 					break;
 				case "slide-down":
-					sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.transform = "translateY(100%)";
+					sliderContainer.classList.add("transition-slide-down-out");
 					break;
 				case "flip":
-					sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out, opacity ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.transform = "rotateY(90deg)";
-					sliderContainer.style.opacity = "0";
+					sliderContainer.classList.add("transition-flip-out");
 					break;
 				case "flip-vertical":
-					sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out, opacity ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.transform = "rotateX(90deg)";
-					sliderContainer.style.opacity = "0";
+					sliderContainer.classList.add("transition-flip-vertical-out");
 					break;
 				case "rotate":
-					sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.transform = "rotate(15deg)";
+					sliderContainer.classList.add("transition-rotate-out");
 					break;
 				case "blur":
-					sliderContainer.style.transition = `filter ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.filter = "blur(10px)";
+					sliderContainer.classList.add("transition-blur-out");
 					break;
 				case "squeeze":
-					sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.transform = "scaleX(0.8)";
+					sliderContainer.classList.add("transition-squeeze-out");
 					break;
 				default:
-					sliderContainer.style.transition = `opacity ${settings.transitionDuration}ms ease-in-out`;
-					sliderContainer.style.opacity = "0";
+					sliderContainer.classList.add("transition-fade-out");
 			}
 
 			setTimeout(async () => {
@@ -539,8 +468,7 @@ export default class MediaSliderPlugin extends Plugin {
 					}
 				} else if (/\.(mp3|ogg|wav)$/i.test(fileName)) {
 					const audio = sliderContainer.createEl("audio", { attr: { src: filePath, controls: "true" } });
-					audio.classList.add("slider-media");
-					audio.style.marginTop = "80px";
+					audio.classList.add("slider-media", "audio-media");
 					if (this.settings.enableVisualizer) {
 						new Visualizer(audio, sliderContainer, {
 							color: this.settings.visualizerColor,
@@ -549,14 +477,13 @@ export default class MediaSliderPlugin extends Plugin {
 					}
 				} else if (/\.(pdf)$/i.test(fileName)) {
 					const iframe = sliderContainer.createEl("iframe", { attr: { src: filePath, width: "100%", height: "100%" } });
-					iframe.style.border = "none";
 					iframe.classList.add("slider-media");
 				} else if (/\.(md)$/i.test(fileName)) {
-					const mdFile = this.app.vault.getAbstractFileByPath(fileName) as TFile;
-					if (mdFile) {
+					const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
+					if (abstractFile && "extension" in abstractFile) {
 						const content = await this.getMarkdownContent(fileName);
 						sliderContainer.empty();
-						await MarkdownRenderer.renderMarkdown(content, sliderContainer, mdFile.path, this);
+						await MarkdownRenderer.renderMarkdown(content, sliderContainer, abstractFile.path, this);
 					}
 				} else {
 					const link = sliderContainer.createEl("a", { text: "Open File", attr: { href: filePath, target: "_blank" } });
@@ -583,46 +510,45 @@ export default class MediaSliderPlugin extends Plugin {
 					updateDrawingOverlay?.(mediaKey);
 				}
 
-				// Show transition.
+				// Remove out transition classes and add in transition classes
+				sliderContainer.classList.remove(
+					"transition-fade-out", "transition-slide-next-out", "transition-slide-prev-out", "transition-zoom-out",
+					"transition-slide-up-out", "transition-slide-down-out", "transition-flip-out", "transition-flip-vertical-out",
+					"transition-rotate-out", "transition-blur-out", "transition-squeeze-out"
+				);
 				switch (settings.transitionEffect) {
 					case "fade":
-						sliderContainer.style.opacity = "1";
+						sliderContainer.classList.add("transition-fade-in");
 						break;
 					case "slide":
-						sliderContainer.style.transform = currentDirection === "next" ? "translateX(100%)" : "translateX(-100%)";
-						sliderContainer.offsetHeight;
-						sliderContainer.style.transition = `transform ${settings.transitionDuration}ms ease-in-out`;
-						sliderContainer.style.transform = "translateX(0)";
+						sliderContainer.classList.add(currentDirection === "next" ? "transition-slide-next-in" : "transition-slide-prev-in");
 						break;
 					case "zoom":
-						sliderContainer.style.transform = "scale(1)";
-						sliderContainer.style.opacity = "1";
+						sliderContainer.classList.add("transition-zoom-in");
 						break;
 					case "slide-up":
-						sliderContainer.style.transform = "translateY(0)";
+						sliderContainer.classList.add("transition-slide-up-in");
 						break;
 					case "slide-down":
-						sliderContainer.style.transform = "translateY(0)";
+						sliderContainer.classList.add("transition-slide-down-in");
 						break;
 					case "flip":
-						sliderContainer.style.transform = "rotateY(0deg)";
-						sliderContainer.style.opacity = "1";
+						sliderContainer.classList.add("transition-flip-in");
 						break;
 					case "flip-vertical":
-						sliderContainer.style.transform = "rotateX(0deg)";
-						sliderContainer.style.opacity = "1";
+						sliderContainer.classList.add("transition-flip-vertical-in");
 						break;
 					case "rotate":
-						sliderContainer.style.transform = "rotate(0deg)";
+						sliderContainer.classList.add("transition-rotate-in");
 						break;
 					case "blur":
-						sliderContainer.style.filter = "blur(0px)";
+						sliderContainer.classList.add("transition-blur-in");
 						break;
 					case "squeeze":
-						sliderContainer.style.transform = "scaleX(1)";
+						sliderContainer.classList.add("transition-squeeze-in");
 						break;
 					default:
-						sliderContainer.style.opacity = "1";
+						sliderContainer.classList.add("transition-fade-in");
 				}
 			}, settings.transitionDuration);
 		};
@@ -645,7 +571,6 @@ export default class MediaSliderPlugin extends Plugin {
 		sliderContent.addEventListener("mouseenter", () => sliderContent.focus());
 		sliderContent.addEventListener("mouseleave", () => sliderContent.blur());
 		sliderContent.tabIndex = 0;
-		sliderContent.style.outline = "none";
 		sliderContent.addEventListener("keydown", (evt: KeyboardEvent) => {
 			if (evt.key === "ArrowLeft") goPrev();
 			else if (evt.key === "ArrowRight") goNext();
@@ -673,7 +598,6 @@ export default class MediaSliderPlugin extends Plugin {
 
 		throttledUpdate();
 
-		// Render thumbnails.
 		if (thumbnailContainer) {
 			thumbnailContainer.empty();
 			files.forEach((entry, index) => {
@@ -688,8 +612,6 @@ export default class MediaSliderPlugin extends Plugin {
 					const ext = fileName.split('.').pop()?.toUpperCase() || "FILE";
 					thumbEl = thumbnailContainer.createEl("div", { text: ext });
 					thumbEl.classList.add("thumbnail-placeholder");
-					// thumbEl.style.width = "80px";
-					// thumbEl.style.height = "80px";
 				}
 				if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
 					thumbEl.classList.add("vertical-thumb");
