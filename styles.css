@@ -17,7 +17,7 @@
 	flex-direction: column;
 	align-items: center;
 	width: 100%;
-	position: relative;
+	posiion: relative;
 }
 
 /* Media slider styling */
@@ -607,3 +607,27 @@
 	color: #fff;
 	outline: none;
   }
+
+  /* Base styling for the visualizer canvas */
+.visualizer-canvas {
+	display: block;
+	width: 100%;
+	/* Default height if no specific height modifier is added */
+	height: 100px;
+  }
+  
+  /* Height modifier classes for specific canvas heights */
+  .visualizer-canvas.visualizer-height-80 {
+	height: 80px;
+  }
+  
+  .visualizer-canvas.visualizer-height-100 {
+	height: 100px;
+  }
+  
+  .visualizer-canvas.visualizer-height-120 {
+	height: 120px;
+  }
+  
+  /* Add additional height classes as needed */
+  

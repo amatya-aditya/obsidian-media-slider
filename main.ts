@@ -51,7 +51,6 @@ export default class MediaSliderPlugin extends Plugin {
 	// --- Force Refresh for Immediate Settings Effect ---
 	refreshSliders() {
 		this.app.workspace.getLeavesOfType("markdown").forEach(leaf => {
-			// Instead of casting to any, check if leaf.view is a MarkdownView with a load method.
 			if (leaf.view instanceof MarkdownView && typeof leaf.view.load === "function") {
 				leaf.view.load();
 			}
@@ -145,7 +144,6 @@ export default class MediaSliderPlugin extends Plugin {
 			return this.markdownCache.get(fileName)!;
 		}
 		const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-		// Check if the abstractFile is a file by verifying it has an "extension" property.
 		if (abstractFile && "extension" in abstractFile) {
 			const content = await this.app.vault.read(abstractFile);
 			this.markdownCache.set(fileName, content);
@@ -232,11 +230,7 @@ export default class MediaSliderPlugin extends Plugin {
 		}
 
 		const sliderContent = sliderWrapper.createDiv("slider-content");
-		// Inline width assignment removed in favor of CSS
-
 		const sliderContainer = sliderContent.createDiv("slider-container");
-		// Inline width and height removed; CSS now handles these
-
 		const captionContainer = sliderContent.createDiv("slider-caption-container");
 
 		let thumbnailContainer: HTMLElement | null = null;
@@ -249,7 +243,6 @@ export default class MediaSliderPlugin extends Plugin {
 			} else {
 				thumbnailContainer.classList.add("horizontal");
 			}
-			// Inline thumbnail dimension assignments removed
 			if (settings.thumbnailPosition === "top" || settings.thumbnailPosition === "left") {
 				sliderWrapper.insertBefore(thumbnailContainer, sliderContent);
 			} else if (settings.thumbnailPosition === "bottom" || settings.thumbnailPosition === "right") {
@@ -385,14 +378,15 @@ export default class MediaSliderPlugin extends Plugin {
 		const prevBtn = sliderContent.createEl("button", { text: "⮜", cls: "slider-btn prev" });
 		const nextBtn = sliderContent.createEl("button", { text: "⮞", cls: "slider-btn next" });
 
+		// Modified updateMediaDisplay to correctly trigger transitions for every image
 		const updateMediaDisplay = async () => {
-			// Remove any previous transition classes.
+			// Remove any previous "in" classes
 			sliderContainer.classList.remove(
-				"transition-fade-out", "transition-slide-next-out", "transition-slide-prev-out", "transition-zoom-out",
-				"transition-slide-up-out", "transition-slide-down-out", "transition-flip-out", "transition-flip-vertical-out",
-				"transition-rotate-out", "transition-blur-out", "transition-squeeze-out"
+				"transition-fade-in", "transition-slide-next-in", "transition-slide-prev-in", "transition-zoom-in",
+				"transition-slide-up-in", "transition-slide-down-in", "transition-flip-in", "transition-flip-vertical-in",
+				"transition-rotate-in", "transition-blur-in", "transition-squeeze-in"
 			);
-			
+			// Add the appropriate "out" transition class
 			switch (settings.transitionEffect) {
 				case "fade":
 					sliderContainer.classList.add("transition-fade-out");
@@ -428,6 +422,7 @@ export default class MediaSliderPlugin extends Plugin {
 					sliderContainer.classList.add("transition-fade-out");
 			}
 
+			// Wait for the "out" transition to complete
 			setTimeout(async () => {
 				sliderContainer.empty();
 				if (settings.captionMode === "below") captionContainer.empty();
@@ -447,17 +442,20 @@ export default class MediaSliderPlugin extends Plugin {
 				}
 				const filePath = this.getMediaSource(fileName);
 
+				// Create a wrapper for the new media element
+				const mediaWrapper = sliderContainer.createDiv("media-wrapper");
+
 				if (/\.(png|jpg|jpeg|gif)$/i.test(fileName)) {
 					try {
 						const compressedUrl = await compressImage(filePath, 800, 600, 0.7);
-						const img = sliderContainer.createEl("img", { attr: { src: compressedUrl } });
+						const img = mediaWrapper.createEl("img", { attr: { src: compressedUrl } });
 						img.classList.add("slider-media");
 					} catch (err) {
-						const img = sliderContainer.createEl("img", { attr: { src: filePath } });
+						const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
 						img.classList.add("slider-media");
 					}
 				} else if (/\.(mp4|webm)$/i.test(fileName)) {
-					const video = sliderContainer.createEl("video", { attr: { src: filePath, controls: "true" } });
+					const video = mediaWrapper.createEl("video", { attr: { src: filePath, controls: "true" } });
 					if (settings.autoplay) video.setAttribute("autoplay", "true");
 					video.classList.add("slider-media");
 					if (this.settings.enableVisualizer) {
@@ -467,7 +465,7 @@ export default class MediaSliderPlugin extends Plugin {
 						});
 					}
 				} else if (/\.(mp3|ogg|wav)$/i.test(fileName)) {
-					const audio = sliderContainer.createEl("audio", { attr: { src: filePath, controls: "true" } });
+					const audio = mediaWrapper.createEl("audio", { attr: { src: filePath, controls: "true" } });
 					audio.classList.add("slider-media", "audio-media");
 					if (this.settings.enableVisualizer) {
 						new Visualizer(audio, sliderContainer, {
@@ -476,23 +474,23 @@ export default class MediaSliderPlugin extends Plugin {
 						});
 					}
 				} else if (/\.(pdf)$/i.test(fileName)) {
-					const iframe = sliderContainer.createEl("iframe", { attr: { src: filePath, width: "100%", height: "100%" } });
+					const iframe = mediaWrapper.createEl("iframe", { attr: { src: filePath, width: "100%", height: "100%" } });
 					iframe.classList.add("slider-media");
 				} else if (/\.(md)$/i.test(fileName)) {
 					const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
 					if (abstractFile && "extension" in abstractFile) {
 						const content = await this.getMarkdownContent(fileName);
-						sliderContainer.empty();
-						await MarkdownRenderer.renderMarkdown(content, sliderContainer, abstractFile.path, this);
+						mediaWrapper.empty();
+						await MarkdownRenderer.renderMarkdown(content, mediaWrapper, abstractFile.path, this);
 					}
 				} else {
-					const link = sliderContainer.createEl("a", { text: "Open File", attr: { href: filePath, target: "_blank" } });
+					const link = mediaWrapper.createEl("a", { text: "Open File", attr: { href: filePath, target: "_blank" } });
 					link.classList.add("slider-media");
 				}
 
 				if (caption) {
 					if (settings.captionMode === "overlay") {
-						const capEl = sliderContainer.createEl("div", { text: caption });
+						const capEl = mediaWrapper.createEl("div", { text: caption });
 						capEl.classList.add("slider-caption-overlay");
 					} else {
 						const capEl = captionContainer.createEl("div", { text: caption });
@@ -510,7 +508,10 @@ export default class MediaSliderPlugin extends Plugin {
 					updateDrawingOverlay?.(mediaKey);
 				}
 
-				// Remove out transition classes and add in transition classes
+				// Force a reflow so that the newly added mediaWrapper renders in its initial state
+				void mediaWrapper.offsetWidth;
+
+				// Remove the "out" transition class and add the "in" transition class
 				sliderContainer.classList.remove(
 					"transition-fade-out", "transition-slide-next-out", "transition-slide-prev-out", "transition-zoom-out",
 					"transition-slide-up-out", "transition-slide-down-out", "transition-flip-out", "transition-flip-vertical-out",
