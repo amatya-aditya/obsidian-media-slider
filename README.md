@@ -249,5 +249,11 @@ This document should help both new and experienced users understand and enjoy al
 
 # Support
 
+If you encounter any issues or have suggestions, Create an issue on GitHub
+    
+## Support the development:
+![BuyMeCoffee](buymeacoffee.com/amatya_aditya)
+
+![bmc_qr](https://github.com/user-attachments/assets/3e8e0ccf-8f4a-472c-ad81-133115635bf7)
 
 
