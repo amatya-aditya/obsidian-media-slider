@@ -24,7 +24,7 @@ The plugin is available through Obsidian as a community plugin.
 ## 3. Creating a Media Slider
 
 To create a slider in your note, wrap your media list in a code block tagged with media-slider. For example:
-
+```
 ```media-slider
 ---
 sliderId: my-slider
