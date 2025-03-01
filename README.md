@@ -246,7 +246,13 @@ Happy sliding!
 
 This document should help both new and experienced users understand and enjoy all the features available in the Media Slider Plugin.
 
+# Roadmap
 
+- [ ]Paste the image in container without opening the codeblock
+- [ ] Render YouTube Videos as media-slider element
+- [ ] Provide Settings for customizing compression ratio
+- [ ] Zoom and Pan
+- 
 # Support
 
 If you encounter any issues or have suggestions, Create an issue on GitHub
