@@ -1,7 +1,8 @@
-# Media Slider Plugin User Guide
+# Media Slider 
 
 The Media Slider Plugin is a powerful tool for displaying images, videos, audio files, PDFs, and even Markdown content in a beautiful, interactive slider within Obsidian. In addition to the basic slideshow features, this plugin supports interactive notes, drawing annotations, audio/video visualizers, and a variety of smooth transition effects. This guide will walk you through the features and explain how to set everything up.
 
+![image](https://github.com/user-attachments/assets/7b19f451-8deb-4961-990e-0643d26af010)
 
 
 ## 1. Overview
