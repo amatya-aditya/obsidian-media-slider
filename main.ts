@@ -82,7 +82,7 @@ export default class MediaSliderPlugin extends Plugin {
 	}
 
 	// --- Simple YAML Parser ---
-	private parseSimpleYAML(yaml: string): Record<string, any> {
+	private parseYAML(yaml: string): Record<string, any> {
 		const result: Record<string, any> = {};
 		const lines = yaml.split("\n");
 		for (let line of lines) {
@@ -172,20 +172,20 @@ export default class MediaSliderPlugin extends Plugin {
 			sliderId: "",
 			carouselShowThumbnails: true,
 			thumbnailPosition: "bottom",
-			captionMode: "below",
+			captionMode: "overlay",
 			autoplay: false,
-			slideshowSpeed: 5,
+			slideshowSpeed: 0,
 			width: "100%",
-			height: "300px",
+			height: "350px",
 			transitionEffect: "fade",
 			transitionDuration: 500,
-			enhancedView: false,
+			enhancedView: true,
 			interactiveNotes: false
 		};
 
 		if (metadataMatch) {
 			try {
-				const parsedSettings = this.parseSimpleYAML(metadataMatch[1]);
+				const parsedSettings = this.parseYAML(metadataMatch[1]);
 				settings = Object.assign(settings, parsedSettings);
 			} catch (error) {
 				console.error("Failed to parse media-slider metadata:", error);
@@ -481,7 +481,7 @@ export default class MediaSliderPlugin extends Plugin {
 					if (abstractFile && "extension" in abstractFile) {
 						const content = await this.getMarkdownContent(fileName);
 						mediaWrapper.empty();
-						await MarkdownRenderer.renderMarkdown(content, mediaWrapper, abstractFile.path, this);
+						await MarkdownRenderer.render(this.app, content, mediaWrapper, abstractFile.path, this);
 					}
 				} else {
 					const link = mediaWrapper.createEl("a", { text: "Open File", attr: { href: filePath, target: "_blank" } });
@@ -628,8 +628,11 @@ export default class MediaSliderPlugin extends Plugin {
 		if (settings.slideshowSpeed > 0) {
 			setInterval(goNext, settings.slideshowSpeed * 1000);
 		}
+
 	}
 }
+
+
 
 class MediaSliderSettingTab extends PluginSettingTab {
 	plugin: MediaSliderPlugin;
@@ -643,11 +646,9 @@ class MediaSliderSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h2", { text: "Media Slider Plugin Settings" });
-
 		new Setting(containerEl)
-			.setName("Enable Drawing Annotation")
-			.setDesc("Toggle to enable drawing annotations on the slider. (Default: off)")
+			.setName("Enable drawing annotation")
+			.setDesc("Toggle to enable drawing annotations on the slider. (default: off)")
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.enableDrawingAnnotation)
 				.onChange(async (value) => {
@@ -658,7 +659,7 @@ class MediaSliderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Enable Visualizer")
+			.setName("Enable visualizer")
 			.setDesc("Toggle to enable wave-like visualization for audio/video playback.")
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.enableVisualizer)
@@ -670,7 +671,7 @@ class MediaSliderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Visualizer Color")
+			.setName("Visualizer color")
 			.setDesc("CSS color value for the visualizer wave.")
 			.addText(text => text
 				.setValue(this.plugin.settings.visualizerColor)
@@ -682,7 +683,7 @@ class MediaSliderSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Visualizer Height")
+			.setName("Visualizer height")
 			.setDesc("Height of the visualizer (e.g., '50px').")
 			.addText(text => text
 				.setValue(this.plugin.settings.visualizerHeight)

@@ -80,7 +80,7 @@ export class DrawingAnnotation {
 		// Summary shows current geometric tool (default "line").
 		const geomSummary = document.createElement("summary");
 		geomSummary.textContent = "➖"; // default for line
-		geomSummary.title = "Geometric Tools (Line, Rect, Circle)";
+		geomSummary.title = "Geometric tools (line, rect, circle)";
 		geomSummary.classList.add("drawing-dropdown-summary");
 		geomDropdown.appendChild(geomSummary);
 

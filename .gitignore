@@ -1,23 +1,11 @@
 # vscode
 .vscode 
 
-# Intellij
-*.iml
-.idea
-
 # npm
 node_modules
 
 
-main.js
-
-
-
-# Exclude sourcemaps
-*.map
-
 # obsidian
 data.json
+main.js
 
-# Exclude macOS Finder (System Explorer) View States
-.DS_Store
