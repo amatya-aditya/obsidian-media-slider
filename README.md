@@ -224,38 +224,20 @@ If you set the `slideshowSpeed` option to a value greater than 0, the slider wil
 - **Transition Issues:**  
   If a transition doesn’t appear as expected, try adjusting the `transitionDuration` or choose a different `transitionEffect`.
   
-- **Copy Button Not Working:**  
-  The copy button is designed to simply copy the Markdown image link to your clipboard. Ensure your browser supports the Clipboard API.
-  
-- **Customization:**  
-  Global settings for drawing annotations and visualizer options are available in the plugin’s settings tab. Adjust these to fit your workflow.
-  
-- **Full Documentation:**  
-  If you need more details, consider reading the inline comments in the source code for deeper technical insights.
-
----
-
-## Conclusion
-
 The Media Slider Plugin is designed to be both flexible and easy to use. By adjusting the YAML metadata in your code blocks and tweaking global settings, you can create a rich, interactive media display experience in Obsidian. Enjoy showcasing your media with smooth transitions, interactive notes, drawing annotations, and more!
-
-If you have any questions or need further assistance, please consult the Obsidian community forums or the plugin’s support channels.
 
 Happy sliding!
 
 ---
 
-This document should help both new and experienced users understand and enjoy all the features available in the Media Slider Plugin.
-
 # Roadmap
 
-- [ ]Paste the image in container without opening the codeblock
+- [ ] Paste the image directly in container without opening the codeblock
 - [ ] Render YouTube Videos as media-slider element
 - [ ] Provide Settings for customizing compression ratio
 - [ ] Zoom and Pan
-- 
-# Support
 
+# Support
 If you encounter any issues or have suggestions, Create an issue on GitHub
     
 ## Support the development:
