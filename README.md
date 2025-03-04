@@ -1,5 +1,4 @@
 # Media Slider 
-# Obsidian Media Slider
 
 [![release](https://img.shields.io/badge/release-v3.1.24-blue?style=flat-square)](#)
 [![commit activity](https://img.shields.io/badge/commit_activity-325%2Fmonth-lightgrey?style=flat-square)](#)
