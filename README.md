@@ -237,6 +237,7 @@ Happy sliding!
 - [ ] Provide Settings for customizing compression ratio
 - [ ] Zoom and Pan
 
+
 # Support
 If you encounter any issues or have suggestions, Create an issue on GitHub
     

@@ -17,7 +17,7 @@
 	flex-direction: column;
 	align-items: center;
 	width: 100%;
-	posiion: relative;
+	position: relative;
 }
 
 /* Media slider styling */
@@ -28,13 +28,12 @@
 	align-items: center;
 	overflow: hidden;
 	background: #000;
-	border-radius: 2px;
 	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 	transition: all var(--transition-duration, 500ms) ease-in-out;
 	width: var(--slider-width, 100%);
 	height: var(--slider-height, 300px);
 	opacity: 1;
-
+	border-radius: 4px;
 }
 
 
@@ -574,7 +573,7 @@ img.slider-media {
 	bottom: 10px;
 	left: 10px;
 	width: calc(100% - 20px);
-	background: rgba(255, 255, 255, 0.8);
+	background: rgba(56, 56, 56, 0.8);
 	padding: 5px;
 	display: none;
   }
@@ -647,5 +646,4 @@ img.slider-media {
 	height: 120px;
   }
   
-  /* Add additional height classes as needed */
   

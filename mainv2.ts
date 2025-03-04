@@ -1,5 +1,15 @@
 // main.ts
-import { Plugin, PluginSettingTab, App, Setting, MarkdownPostProcessorContext, TFile, MarkdownRenderer, MarkdownView,parseYaml } from "obsidian";
+import {
+	Plugin,
+	PluginSettingTab,
+	App,
+	Setting,
+	MarkdownPostProcessorContext,
+	TFile,
+	MarkdownRenderer,
+	MarkdownView,
+    parseYaml
+} from "obsidian";
 import { compressImage } from "./src/compression";
 import { NotesManager } from "./src/notes";
 import { DrawingAnnotation } from "./src/drawing";
@@ -10,13 +20,17 @@ interface MediaSliderSettings {
 	enableVisualizer: boolean;
 	visualizerColor: string;
 	visualizerHeight: string;
+	attachmentLocation: "default" | "custom" | "same";
+	customAttachmentFolder: string;
 }
 
 const DEFAULT_SETTINGS: MediaSliderSettings = {
 	enableDrawingAnnotation: false,
 	enableVisualizer: false,
 	visualizerColor: "#00ff00",
-	visualizerHeight: "50px"
+	visualizerHeight: "50px",
+	attachmentLocation: "default",
+	customAttachmentFolder: "SliderAttachment"
 };
 
 export default class MediaSliderPlugin extends Plugin {
@@ -27,6 +41,9 @@ export default class MediaSliderPlugin extends Plugin {
 	private drawingData: { [key: string]: string } = {};
 	private static sliderCounter = 0;
 
+	/* ------------------------------------------------------------------------ */
+	/*  1. Plugin Lifecycle                                                     */
+	/* ------------------------------------------------------------------------ */
 	async onload() {
 		console.log("Loading Media Slider Plugin...");
 		await this.loadSettings();
@@ -34,12 +51,81 @@ export default class MediaSliderPlugin extends Plugin {
 		this.notesManager = new NotesManager(this);
 		await this.notesManager.load();
 		await this.loadDrawingData();
+
+		// Register code block processor (for preview mode)
 		this.registerMarkdownCodeBlockProcessor("media-slider", (source, el, ctx) => {
 			this.createMediaSlider(source, el, ctx);
 		});
+
+		// Also add an editor-paste event for live preview mode
+		this.registerEvent(
+			this.app.workspace.on("editor-paste", async (evt: ClipboardEvent, editor: any) => {
+				const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (!mdView) return;
+
+				const clipboardData = evt.clipboardData;
+				if (!clipboardData) return;
+				for (const item of clipboardData.items) {
+					if (item.type.indexOf("image") !== -1) {
+						const file = item.getAsFile();
+						if (!file) continue;
+						const reader = new FileReader();
+						reader.onload = async (e) => {
+							const dataUrl = e.target?.result as string;
+							// Convert dataUrl to binary data
+							const response = await fetch(dataUrl);
+							const blob = await response.blob();
+							const arrayBuffer = await blob.arrayBuffer();
+							const uint8Array = new Uint8Array(arrayBuffer);
+
+							// Compute folderPath using the setting:
+							let folderPath: string;
+							if (this.settings.attachmentLocation === "default") {
+								folderPath = this.app.vault.getConfig("attachmentFolderPath") || "";
+							} else if (this.settings.attachmentLocation === "custom") {
+								folderPath = this.settings.customAttachmentFolder;
+							} else { // "same"
+								folderPath = mdView.file.parent.path;
+							}
+
+							// If folderPath is non-empty, ensure it exists
+							if (folderPath && !this.app.vault.getAbstractFileByPath(folderPath)) {
+								try {
+									await this.app.vault.createFolder(folderPath);
+								} catch (error) {
+									console.error("Error creating folder:", error);
+								}
+							}
+
+							const newFileName = folderPath
+								? `${folderPath}/pasteimage-${Date.now()}.png`
+								: `pasteimage-${Date.now()}.png`;
+
+							try {
+								await this.app.vault.createBinary(newFileName, uint8Array);
+							} catch (error) {
+								console.error("Error creating pasted image file:", error);
+							}
+
+							// Insert wiki-link reference at the current cursor position
+							const cmEditor = editor.cm; // CodeMirror instance
+							const doc = cmEditor.getDoc();
+							const cursor = doc.getCursor();
+							doc.replaceRange(`[[${newFileName}]]\n`, cursor);
+
+							evt.preventDefault();
+						};
+						reader.readAsDataURL(file);
+						break;
+					}
+				}
+			})
+		);
 	}
 
-	// --- Settings Persistence ---
+	/* ------------------------------------------------------------------------ */
+	/*  2. Settings Persistence                                                 */
+	/* ------------------------------------------------------------------------ */
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
@@ -48,7 +134,6 @@ export default class MediaSliderPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	// --- Force Refresh for Immediate Settings Effect ---
 	refreshSliders() {
 		this.app.workspace.getLeavesOfType("markdown").forEach(leaf => {
 			if (leaf.view instanceof MarkdownView && typeof leaf.view.load === "function") {
@@ -57,7 +142,9 @@ export default class MediaSliderPlugin extends Plugin {
 		});
 	}
 
-	// --- Persistent Drawing Data Management ---
+	/* ------------------------------------------------------------------------ */
+	/*  3. Drawing Data Persistence                                             */
+	/* ------------------------------------------------------------------------ */
 	private async loadDrawingData(): Promise<void> {
 		const data = await this.loadData();
 		this.drawingData = data?.drawings || {};
@@ -81,8 +168,40 @@ export default class MediaSliderPlugin extends Plugin {
 		await this.saveDrawingData();
 	}
 
+	/* ------------------------------------------------------------------------ */
+	/*  4. YAML Parser (simple)                                                 */
+	/* ------------------------------------------------------------------------ */
+	private parseYAML(yaml: string): Record<string, any> {
+		const result: Record<string, any> = {};
+		const lines = yaml.split("\n");
+		for (let line of lines) {
+			line = line.trim();
+			if (!line) continue;
+			const separatorIndex = line.indexOf(":");
+			if (separatorIndex === -1) continue;
+			const key = line.substring(0, separatorIndex).trim();
+			let rawValue = line.substring(separatorIndex + 1).trim();
+			let value: string | boolean | number;
+			if ((rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+				(rawValue.startsWith("'") && rawValue.endsWith("'"))) {
+				value = rawValue.slice(1, -1);
+			} else if (rawValue === "true") {
+				value = true;
+			} else if (rawValue === "false") {
+				value = false;
+			} else if (!isNaN(Number(rawValue))) {
+				value = Number(rawValue);
+			} else {
+				value = rawValue;
+			}
+			result[key] = value;
+		}
+		return result;
+	}
 
-	// --- Resource Helpers ---
+	/* ------------------------------------------------------------------------ */
+	/*  5. Resource Helpers                                                     */
+	/* ------------------------------------------------------------------------ */
 	private getCachedResourcePath(fileName: string): string {
 		if (this.filePathCache.has(fileName)) {
 			return this.filePathCache.get(fileName)!;
@@ -110,7 +229,32 @@ export default class MediaSliderPlugin extends Plugin {
 		return this.getCachedResourcePath(fileName);
 	}
 
-	// --- Revised getMarkdownContent without unsafe casting ---
+    // --- YouTube Helpers ---
+	private isYouTubeURL(url: string): boolean {
+		return url.includes("youtube.com/watch") || url.includes("youtu.be/");
+	}
+
+	private getYouTubeEmbedURL(url: string): string {
+		let videoId = "";
+		const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/;
+		const match = url.match(youtubeRegex);
+		if (match && match[1]) {
+			videoId = match[1];
+		}
+		return `https://www.youtube.com/embed/${videoId}`;
+	}
+
+	private getYouTubeThumbnail(url: string): string {
+		let videoId = "";
+		const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/;
+		const match = url.match(youtubeRegex);
+		if (match && match[1]) {
+			videoId = match[1];
+		}
+		return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+	}
+
+
 	private async getMarkdownContent(fileName: string): Promise<string> {
 		if (this.markdownCache.has(fileName)) {
 			return this.markdownCache.get(fileName)!;
@@ -134,12 +278,36 @@ export default class MediaSliderPlugin extends Plugin {
 		}) as T;
 	}
 
-	// --- Slider Creation ---
+	/* ------------------------------------------------------------------------ */
+	/*  6. Append New Image Reference to the Code Block                          */
+	/* ------------------------------------------------------------------------ */
+	private async appendImageToCodeBlock(ctx: MarkdownPostProcessorContext, fileName: string): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
+		if (!file) {
+			console.warn("Could not find file for this code block. (ctx.sourcePath:", ctx.sourcePath, ")");
+			return;
+		}
+		const fileContent = await this.app.vault.read(file);
+		const updatedContent = fileContent.replace(
+			/(```media-slider[\s\S]+?```)/,
+			(match) => {
+				return match.replace(/```$/, `[[${fileName}]]\n\`\`\``);
+			}
+		);
+		if (updatedContent === fileContent) {
+			console.log("No media-slider code block replaced. Possibly none found or multiple blocks exist.");
+			return;
+		}
+		await this.app.vault.modify(file, updatedContent);
+	}
+
+	/* ------------------------------------------------------------------------ */
+	/*  7. Code Block Processor: Create Media Slider                           */
+	/* ------------------------------------------------------------------------ */
 	private createMediaSlider(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		const metadataMatch = source.match(/---\n([\s\S]+?)\n---/);
 		const mediaContent = source.replace(/---\n[\s\S]+?\n---/, "").trim();
 		const mediaFiles = mediaContent.split("\n").map(line => line.trim()).filter(Boolean);
-
 		let settings: any = {
 			sliderId: "",
 			carouselShowThumbnails: true,
@@ -150,25 +318,22 @@ export default class MediaSliderPlugin extends Plugin {
 			width: "100%",
 			height: "350px",
 			transitionEffect: "fade",
-			transitionDuration: 500,
+			transitionDuration: 100,
 			enhancedView: true,
 			interactiveNotes: false
 		};
-
 		if (metadataMatch) {
 			try {
-				const parsedSettings = parseYaml(metadataMatch[1]);
+				const parsedSettings = this.parseYAML(metadataMatch[1]);
 				settings = Object.assign(settings, parsedSettings);
 			} catch (error) {
 				console.error("Failed to parse media-slider metadata:", error);
 			}
 		}
-
 		let sliderId = settings.sliderId;
 		if (!sliderId) {
 			sliderId = `slider-${MediaSliderPlugin.sliderCounter++}`;
 		}
-
 		const validFiles = mediaFiles.map(file => {
 			let match = file.match(/!?\[\[(.*?)\]\]/);
 			if (!match) {
@@ -176,35 +341,43 @@ export default class MediaSliderPlugin extends Plugin {
 			}
 			return match ? match[1] : "";
 		}).filter(Boolean);
-
 		if (validFiles.length === 0) {
 			el.createEl("p", { text: "No valid media files found." });
 			return;
 		}
-
 		this.notesManager.cleanupNotesForSlider(sliderId, validFiles).catch(console.error);
 		this.cleanupDrawingData(sliderId, validFiles).catch(console.error);
-
-		this.renderSlider(el, validFiles, settings, sliderId);
+		this.renderSlider(el, validFiles, settings, sliderId, ctx);
 	}
 
-	// --- Render Slider UI ---
-	private renderSlider(container: HTMLElement, files: string[], settings: any, sliderId: string) {
+	/* ------------------------------------------------------------------------ */
+	/*  8. Render the Slider (Using persistent media-wrapper)                    */
+	/* ------------------------------------------------------------------------ */
+	private renderSlider(
+		container: HTMLElement,
+		files: string[],
+		settings: any,
+		sliderId: string,
+		ctx: MarkdownPostProcessorContext
+	) {
 		container.empty();
 		let updateDrawingOverlay: ((mediaKey: string) => void) | undefined;
 		const sliderWrapper = container.createDiv("media-slider-wrapper");
-
 		// Layout classes based on thumbnail position
-		if (settings.carouselShowThumbnails && (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right")) {
+		if (settings.carouselShowThumbnails &&
+			(settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right")) {
 			sliderWrapper.classList.add("flex-row");
 		} else {
 			sliderWrapper.classList.add("flex-column", "center");
 		}
-
 		const sliderContent = sliderWrapper.createDiv("slider-content");
+        sliderContent.style.setProperty('--slider-width', settings.width);
+		sliderContent.style.setProperty('--slider-height', settings.height);
+		sliderContent.style.setProperty('--transition-duration', settings.transitionDuration + 'ms');
 		const sliderContainer = sliderContent.createDiv("slider-container");
+		// Create media-wrapper once so we update only its inner content
+		const mediaWrapper = sliderContainer.createDiv("media-wrapper");
 		const captionContainer = sliderContent.createDiv("slider-caption-container");
-
 		let thumbnailContainer: HTMLElement | null = null;
 		let thumbnailEls: HTMLElement[] = [];
 		if (settings.carouselShowThumbnails) {
@@ -217,14 +390,13 @@ export default class MediaSliderPlugin extends Plugin {
 			}
 			if (settings.thumbnailPosition === "top" || settings.thumbnailPosition === "left") {
 				sliderWrapper.insertBefore(thumbnailContainer, sliderContent);
-			} else if (settings.thumbnailPosition === "bottom" || settings.thumbnailPosition === "right") {
+			} else {
 				sliderWrapper.appendChild(thumbnailContainer);
 			}
 		}
-
 		let currentIndex = 0;
 		let currentDirection: "next" | "prev" = "next";
-
+		// Enhanced view controls
 		if (settings.enhancedView) {
 			const fullScreenBtn = sliderWrapper.createEl("button", { text: "⛶", cls: "fullscreen-btn" });
 			fullScreenBtn.onclick = () => {
@@ -236,7 +408,6 @@ export default class MediaSliderPlugin extends Plugin {
 					sliderContainer.classList.remove("fullscreen-slider");
 				}
 			};
-
 			const copyBtn = sliderWrapper.createEl("button", { text: "📋", cls: "copy-btn" });
 			copyBtn.onclick = async () => {
 				const currentEntry = files[currentIndex];
@@ -250,7 +421,7 @@ export default class MediaSliderPlugin extends Plugin {
 				}
 			};
 		}
-
+		// Interactive notes
 		let notesContainer: HTMLElement | null = null;
 		let notesTextarea: HTMLTextAreaElement | null = null;
 		let notesToggleBtn: HTMLElement | null = null;
@@ -265,13 +436,11 @@ export default class MediaSliderPlugin extends Plugin {
 					}
 				}
 			};
-
 			notesContainer = sliderWrapper.createDiv("notes-container");
 			notesTextarea = document.createElement("textarea");
 			notesTextarea.classList.add("notes-textarea");
 			notesTextarea.placeholder = "Add your notes here...";
 			notesContainer.appendChild(notesTextarea);
-
 			const saveNotesBtn = document.createElement("button");
 			saveNotesBtn.textContent = "💾";
 			saveNotesBtn.classList.add("notes-save-btn");
@@ -284,12 +453,11 @@ export default class MediaSliderPlugin extends Plugin {
 			};
 			notesContainer.appendChild(saveNotesBtn);
 		}
-
+		// Drawing annotation
 		let drawingAnnotation: DrawingAnnotation | null = null;
 		let clearDrawingBtn: HTMLElement | null = null;
 		if (this.settings.enableDrawingAnnotation) {
 			const drawingToggleBtn = sliderWrapper.createEl("button", { text: "✏️", cls: "drawing-toggle-btn" });
-
 			updateDrawingOverlay = (mediaKey: string) => {
 				const existingOverlay = sliderContainer.querySelector(".drawing-overlay");
 				if (existingOverlay) {
@@ -304,8 +472,8 @@ export default class MediaSliderPlugin extends Plugin {
 						clearDrawingBtn.onclick = async () => {
 							delete this.drawingData[mediaKey];
 							await this.saveDrawingData();
-							const existingOverlay = sliderContainer.querySelector(".drawing-overlay");
-							if (existingOverlay) existingOverlay.remove();
+							const existingOverlay2 = sliderContainer.querySelector(".drawing-overlay");
+							if (existingOverlay2) existingOverlay2.remove();
 							clearDrawingBtn!.remove();
 							clearDrawingBtn = null;
 						};
@@ -317,7 +485,6 @@ export default class MediaSliderPlugin extends Plugin {
 					}
 				}
 			};
-
 			drawingToggleBtn.onclick = async () => {
 				const mediaKey = `${sliderId}-${files[currentIndex]}`;
 				if (drawingAnnotation) {
@@ -344,66 +511,63 @@ export default class MediaSliderPlugin extends Plugin {
 				}
 			};
 		}
-
 		container.appendChild(sliderWrapper);
-
 		const prevBtn = sliderContent.createEl("button", { text: "⮜", cls: "slider-btn prev" });
 		const nextBtn = sliderContent.createEl("button", { text: "⮞", cls: "slider-btn next" });
-
-		// Modified updateMediaDisplay to correctly trigger transitions for every image
+		/* -------------------------------------------------------------------- */
+		/*  updateMediaDisplay: Only update media-wrapper to reduce flicker       */
+		/* -------------------------------------------------------------------- */
 		const updateMediaDisplay = async () => {
-			// Remove any previous "in" classes
-			sliderContainer.classList.remove(
+			// Remove any previous "in" classes from mediaWrapper
+			mediaWrapper.classList.remove(
 				"transition-fade-in", "transition-slide-next-in", "transition-slide-prev-in", "transition-zoom-in",
 				"transition-slide-up-in", "transition-slide-down-in", "transition-flip-in", "transition-flip-vertical-in",
 				"transition-rotate-in", "transition-blur-in", "transition-squeeze-in"
 			);
-			// Add the appropriate "out" transition class
+			// Add out transition class based on effect
 			switch (settings.transitionEffect) {
 				case "fade":
-					sliderContainer.classList.add("transition-fade-out");
+					mediaWrapper.classList.add("transition-fade-out");
 					break;
 				case "slide":
-					sliderContainer.classList.add(currentDirection === "next" ? "transition-slide-next-out" : "transition-slide-prev-out");
+					mediaWrapper.classList.add(currentDirection === "next" ? "transition-slide-next-out" : "transition-slide-prev-out");
 					break;
 				case "zoom":
-					sliderContainer.classList.add("transition-zoom-out");
+					mediaWrapper.classList.add("transition-zoom-out");
 					break;
 				case "slide-up":
-					sliderContainer.classList.add("transition-slide-up-out");
+					mediaWrapper.classList.add("transition-slide-up-out");
 					break;
 				case "slide-down":
-					sliderContainer.classList.add("transition-slide-down-out");
+					mediaWrapper.classList.add("transition-slide-down-out");
 					break;
 				case "flip":
-					sliderContainer.classList.add("transition-flip-out");
+					mediaWrapper.classList.add("transition-flip-out");
 					break;
 				case "flip-vertical":
-					sliderContainer.classList.add("transition-flip-vertical-out");
+					mediaWrapper.classList.add("transition-flip-vertical-out");
 					break;
 				case "rotate":
-					sliderContainer.classList.add("transition-rotate-out");
+					mediaWrapper.classList.add("transition-rotate-out");
 					break;
 				case "blur":
-					sliderContainer.classList.add("transition-blur-out");
+					mediaWrapper.classList.add("transition-blur-out");
 					break;
 				case "squeeze":
-					sliderContainer.classList.add("transition-squeeze-out");
+					mediaWrapper.classList.add("transition-squeeze-out");
 					break;
 				default:
-					sliderContainer.classList.add("transition-fade-out");
+					mediaWrapper.classList.add("transition-fade-out");
 			}
-
-			// Wait for the "out" transition to complete
 			setTimeout(async () => {
-				sliderContainer.empty();
+				// Only update inner content of mediaWrapper
+				mediaWrapper.empty();
 				if (settings.captionMode === "below") captionContainer.empty();
 				if (thumbnailEls.length > 0) {
 					thumbnailEls.forEach((thumb, idx) => {
 						thumb.classList.toggle("active-thumbnail", idx === currentIndex);
 					});
 				}
-
 				const currentEntry = files[currentIndex];
 				let [fileName, caption] = currentEntry.split("|").map(s => s.trim());
 				if (!fileName.includes(".")) {
@@ -413,10 +577,7 @@ export default class MediaSliderPlugin extends Plugin {
 					}
 				}
 				const filePath = this.getMediaSource(fileName);
-
-				// Create a wrapper for the new media element
-				const mediaWrapper = sliderContainer.createDiv("media-wrapper");
-
+				// Populate mediaWrapper with new media element
 				if (/\.(png|jpg|jpeg|gif)$/i.test(fileName)) {
 					try {
 						const compressedUrl = await compressImage(filePath, 800, 600, 0.7);
@@ -455,11 +616,27 @@ export default class MediaSliderPlugin extends Plugin {
 						mediaWrapper.empty();
 						await MarkdownRenderer.render(this.app, content, mediaWrapper, abstractFile.path, this);
 					}
+
+                } else if (this.isYouTubeURL(fileName)) {
+					// For YouTube, use the embed URL and adapt width/height from sliderContainer
+					const embedUrl = this.getYouTubeEmbedURL(fileName);
+					const iframe = mediaWrapper.createEl("iframe", { 
+						attr: { 
+							src: embedUrl,
+							frameborder: "0", 
+							allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture", 
+							allowfullscreen: "true" 
+						} 
+					});
+					// Adapt the iframe size to the slider container dimensions
+					iframe.style.width = sliderContainer.clientWidth + "px";
+					iframe.style.height = sliderContainer.clientHeight + "px";
+					iframe.classList.add("slider-media");
+
 				} else {
 					const link = mediaWrapper.createEl("a", { text: "Open File", attr: { href: filePath, target: "_blank" } });
 					link.classList.add("slider-media");
 				}
-
 				if (caption) {
 					if (settings.captionMode === "overlay") {
 						const capEl = mediaWrapper.createEl("div", { text: caption });
@@ -469,63 +646,56 @@ export default class MediaSliderPlugin extends Plugin {
 						capEl.classList.add("slider-caption");
 					}
 				}
-
 				if (settings.interactiveNotes && notesTextarea) {
 					const mediaKey = `${sliderId}-${files[currentIndex]}`;
 					notesTextarea.value = this.notesManager.getNote(mediaKey);
 				}
-
 				if (this.settings.enableDrawingAnnotation) {
 					const mediaKey = `${sliderId}-${files[currentIndex]}`;
 					updateDrawingOverlay?.(mediaKey);
 				}
-
-				// Force a reflow so that the newly added mediaWrapper renders in its initial state
-				void mediaWrapper.offsetWidth;
-
-				// Remove the "out" transition class and add the "in" transition class
-				sliderContainer.classList.remove(
+				void mediaWrapper.offsetWidth; // Force reflow
+				mediaWrapper.classList.remove(
 					"transition-fade-out", "transition-slide-next-out", "transition-slide-prev-out", "transition-zoom-out",
 					"transition-slide-up-out", "transition-slide-down-out", "transition-flip-out", "transition-flip-vertical-out",
 					"transition-rotate-out", "transition-blur-out", "transition-squeeze-out"
 				);
 				switch (settings.transitionEffect) {
 					case "fade":
-						sliderContainer.classList.add("transition-fade-in");
+						mediaWrapper.classList.add("transition-fade-in");
 						break;
 					case "slide":
-						sliderContainer.classList.add(currentDirection === "next" ? "transition-slide-next-in" : "transition-slide-prev-in");
+						mediaWrapper.classList.add(currentDirection === "next" ? "transition-slide-next-in" : "transition-slide-prev-in");
 						break;
 					case "zoom":
-						sliderContainer.classList.add("transition-zoom-in");
+						mediaWrapper.classList.add("transition-zoom-in");
 						break;
 					case "slide-up":
-						sliderContainer.classList.add("transition-slide-up-in");
+						mediaWrapper.classList.add("transition-slide-up-in");
 						break;
 					case "slide-down":
-						sliderContainer.classList.add("transition-slide-down-in");
+						mediaWrapper.classList.add("transition-slide-down-in");
 						break;
 					case "flip":
-						sliderContainer.classList.add("transition-flip-in");
+						mediaWrapper.classList.add("transition-flip-in");
 						break;
 					case "flip-vertical":
-						sliderContainer.classList.add("transition-flip-vertical-in");
+						mediaWrapper.classList.add("transition-flip-vertical-in");
 						break;
 					case "rotate":
-						sliderContainer.classList.add("transition-rotate-in");
+						mediaWrapper.classList.add("transition-rotate-in");
 						break;
 					case "blur":
-						sliderContainer.classList.add("transition-blur-in");
+						mediaWrapper.classList.add("transition-blur-in");
 						break;
 					case "squeeze":
-						sliderContainer.classList.add("transition-squeeze-in");
+						mediaWrapper.classList.add("transition-squeeze-in");
 						break;
 					default:
-						sliderContainer.classList.add("transition-fade-in");
+						mediaWrapper.classList.add("transition-fade-in");
 				}
 			}, settings.transitionDuration);
 		};
-
 		const throttledUpdate = this.throttle(updateMediaDisplay, 100);
 		const goPrev = () => {
 			currentDirection = "prev";
@@ -537,13 +707,12 @@ export default class MediaSliderPlugin extends Plugin {
 			currentIndex = (currentIndex + 1) % files.length;
 			throttledUpdate();
 		};
-
 		prevBtn.onclick = goPrev;
 		nextBtn.onclick = goNext;
-
+		// Keyboard and touch events
+		sliderContent.tabIndex = 0;
 		sliderContent.addEventListener("mouseenter", () => sliderContent.focus());
 		sliderContent.addEventListener("mouseleave", () => sliderContent.blur());
-		sliderContent.tabIndex = 0;
 		sliderContent.addEventListener("keydown", (evt: KeyboardEvent) => {
 			if (evt.key === "ArrowLeft") goPrev();
 			else if (evt.key === "ArrowRight") goNext();
@@ -568,15 +737,19 @@ export default class MediaSliderPlugin extends Plugin {
 			const diff = touchStartX - touchEndX;
 			if (Math.abs(diff) > 50) diff > 0 ? goNext() : goPrev();
 		});
-
 		throttledUpdate();
-
+		// Thumbnails
 		if (thumbnailContainer) {
 			thumbnailContainer.empty();
 			files.forEach((entry, index) => {
 				let [fileName] = entry.split("|").map(s => s.trim());
 				let thumbEl: HTMLElement;
-				if (/\.(png|jpg|jpeg|gif)$/i.test(fileName)) {
+                if (this.isYouTubeURL(fileName)) {
+					// Use YouTube thumbnail
+					const thumbUrl = this.getYouTubeThumbnail(fileName);
+					thumbEl = thumbnailContainer.createEl("img", { attr: { src: thumbUrl }, cls: "thumbnail" });
+				}
+                else if (/\.(png|jpg|jpeg|gif)$/i.test(fileName)) {
 					thumbEl = thumbnailContainer.createEl("img", {
 						attr: { src: this.getMediaSource(fileName) },
 						cls: "thumbnail"
@@ -596,16 +769,71 @@ export default class MediaSliderPlugin extends Plugin {
 				thumbnailEls.push(thumbEl);
 			});
 		}
-
 		if (settings.slideshowSpeed > 0) {
 			setInterval(goNext, settings.slideshowSpeed * 1000);
 		}
-
+		/* -------------------------------------------------------------------- */
+		/*  Handle Pasting Images into the Slider (Preview Mode)                 */
+		/* -------------------------------------------------------------------- */
+		sliderWrapper.tabIndex = 0;
+		sliderWrapper.addEventListener("click", () => {
+			sliderWrapper.focus();
+		});
+		sliderWrapper.addEventListener("paste", async (evt: ClipboardEvent) => {
+			const clipboardData = evt.clipboardData;
+			if (!clipboardData) return;
+			for (const item of clipboardData.items) {
+				if (item.type.indexOf("image") !== -1) {
+					const file = item.getAsFile();
+					if (!file) continue;
+					const reader = new FileReader();
+					reader.onload = async (e) => {
+						const dataUrl = e.target?.result as string;
+						// Convert dataUrl to binary data
+						const response = await fetch(dataUrl);
+						const blob = await response.blob();
+						const arrayBuffer = await blob.arrayBuffer();
+						const uint8Array = new Uint8Array(arrayBuffer);
+						// Compute folderPath based on settings and ctx
+						let folderPath: string;
+						if (this.settings.attachmentLocation === "default") {
+							folderPath = this.app.vault.getConfig("attachmentFolderPath") || "";
+						} else if (this.settings.attachmentLocation === "custom") {
+							folderPath = this.settings.customAttachmentFolder;
+						} else { // "same"
+							const fileObj = this.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
+							folderPath = fileObj ? fileObj.parent.path : "";
+						}
+						if (folderPath && !this.app.vault.getAbstractFileByPath(folderPath)) {
+							try {
+								await this.app.vault.createFolder(folderPath);
+							} catch (error) {
+								console.error("Error creating folder:", error);
+							}
+						}
+						const newFileName = folderPath
+							? `${folderPath}/pasteimage-${Date.now()}.png`
+							: `pasteimage-${Date.now()}.png`;
+						try {
+							await this.app.vault.createBinary(newFileName, uint8Array);
+						} catch (error) {
+							console.error("Error creating pasted image file:", error);
+						}
+						files.push(`[[${newFileName}]]`);
+						throttledUpdate();
+						await this.appendImageToCodeBlock(ctx, newFileName);
+					};
+					reader.readAsDataURL(file);
+					break;
+				}
+			}
+		});
 	}
 }
 
-
-
+/* ------------------------------------------------------------------------ */
+/*  9. Settings Tab                                                         */
+/* ------------------------------------------------------------------------ */
 class MediaSliderSettingTab extends PluginSettingTab {
 	plugin: MediaSliderPlugin;
 
@@ -617,7 +845,30 @@ class MediaSliderSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-
+        new Setting(containerEl)
+			.setName("Pasted attachment location")
+			.setDesc("Where to save pasted images.")
+			.addDropdown(dropdown => {
+				dropdown.addOption("default", "Default");
+				dropdown.addOption("custom", "Custom folder");
+				dropdown.addOption("same", "Same folder as current note");
+				dropdown.setValue(this.plugin.settings.attachmentLocation);
+				dropdown.onChange(async (value: "default" | "custom" | "same") => {
+					this.plugin.settings.attachmentLocation = value;
+					await this.plugin.saveSettings();
+				});
+			});
+		new Setting(containerEl)
+			.setName("Custom attachment folder")
+			.setDesc("Folder to save pasted images when using the custom option.")
+			.addText(text => {
+				text.setPlaceholder("SliderAttachment");
+				text.setValue(this.plugin.settings.customAttachmentFolder);
+				text.onChange(async (value) => {
+					this.plugin.settings.customAttachmentFolder = value;
+					await this.plugin.saveSettings();
+				});
+			});
 		new Setting(containerEl)
 			.setName("Enable drawing annotation")
 			.setDesc("Toggle to enable drawing annotations on the slider. (default: off)")
@@ -629,7 +880,6 @@ class MediaSliderSettingTab extends PluginSettingTab {
 					this.plugin.refreshSliders();
 				})
 			);
-
 		new Setting(containerEl)
 			.setName("Enable visualizer")
 			.setDesc("Toggle to enable wave-like visualization for audio/video playback.")
@@ -641,7 +891,6 @@ class MediaSliderSettingTab extends PluginSettingTab {
 					this.plugin.refreshSliders();
 				})
 			);
-
 		new Setting(containerEl)
 			.setName("Visualizer color")
 			.setDesc("CSS color value for the visualizer wave.")
@@ -653,7 +902,6 @@ class MediaSliderSettingTab extends PluginSettingTab {
 					this.plugin.refreshSliders();
 				})
 			);
-
 		new Setting(containerEl)
 			.setName("Visualizer height")
 			.setDesc("Height of the visualizer (e.g., '50px').")
