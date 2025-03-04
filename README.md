@@ -1,7 +1,5 @@
 # Media Slider 
 
-# Obsidian Media Slider
-
 ![GitHub release](https://img.shields.io/github/v/release/amatya-aditya/obsidian-media-slider?style=flat-square&color=573E7A&label=release)
 ![Downloads](https://img.shields.io/github/downloads/amatya-aditya/obsidian-media-slider/total?style=flat-square&color=94k&label=downloads)
 ![GitHub repo size](https://img.shields.io/github/repo-size/amatya-aditya/obsidian-media-slider?style=flat-square&color=52%20MiB&label=repo%20size)
