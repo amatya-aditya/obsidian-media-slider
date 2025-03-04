@@ -1,14 +1,13 @@
 # Media Slider 
 
-[![release](https://img.shields.io/badge/release-v3.1.24-blue?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider/releases)
-[![downloads](https://img.shields.io/badge/downloads-94k-blueviolet?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider/releases)
-[![hits](https://img.shields.io/badge/hits-2.74%20M-success?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider)
-[![code size](https://img.shields.io/badge/code%20size-712%20KiB-yellow?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider)
-[![image size](https://img.shields.io/badge/image%20size-52%20MiB-red?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider)
-[![pull requests](https://img.shields.io/badge/pull%20requests-509%20closed-inactive?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider/pulls)
-[![commit activity](https://img.shields.io/badge/commit%20activity-325%2Fmonth-lightgrey?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider/commits/main)
-[![last commit](https://img.shields.io/badge/last%20commit-today-brightgreen?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider/commits/main)
-[![license](https://img.shields.io/badge/license-AGPL--3.0-orange?style=flat-square)](https://github.com/amatya-aditya/obsidian-media-slider/blob/main/LICENSE)
+![release](https://img.shields.io/github/v/release/amatya-aditya/obsidian-media-slider?style=flat-square&color=573E7A&label=release)
+![downloads](https://img.shields.io/github/downloads/amatya-aditya/obsidian-media-slider/total?style=flat-square&color=94k&label=downloads)
+![repo size](https://img.shields.io/github/repo-size/amatya-aditya/obsidian-media-slider?style=flat-square&color=52%20MiB-red&label=repo%20size)
+![pull requests](https://img.shields.io/github/issues-pr-closed/amatya-aditya/obsidian-media-slider?style=flat-square&color=509%20closed&label=pull%20requests)
+![commit activity](https://img.shields.io/github/commit-activity/m/amatya-aditya/obsidian-media-slider?style=flat-square&color=325%2Fmonth-lightgrey&label=commit%20activity)
+![last commit](https://img.shields.io/github/last-commit/amatya-aditya/obsidian-media-slider?style=flat-square&color=today-brightgreen&label=last%20commit)
+![license](https://img.shields.io/github/license/amatya-aditya/obsidian-media-slider?style=flat-square&color=AGPL-3.0-orange&label=license)
+
 
 The Media Slider Plugin is a powerful tool for displaying images, videos, audio files, PDFs, and even Markdown content in a beautiful, interactive slider within Obsidian. In addition to the basic slideshow features, this plugin supports interactive notes, drawing annotations, audio/video visualizers, and a variety of smooth transition effects. This guide will walk you through the features and explain how to set everything up.
 
