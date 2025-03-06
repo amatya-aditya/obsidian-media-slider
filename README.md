@@ -14,6 +14,19 @@ The Media Slider Plugin is a powerful tool for displaying images, videos, audio 
 ![image](https://github.com/user-attachments/assets/7b19f451-8deb-4961-990e-0643d26af010)
 
 
+<div>
+  <!-- Video Thumbnail -->
+  <a href="https://www.youtube.com/watch?v=Ie73HjSW85Y" target="_blank" style="display: flex;margin: auto;">
+    <img src="https://img.youtube.com/vi/Ie73HjSW85Y/0.jpg" style="width: 65%; ">
+  </a>
+
+  <!-- Play Button -->
+  <a href="https://www.youtube.com/watch?v=Ie73HjSW85Y" target="_blank" style="display: inline-block;">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" 
+         style="width: 50px; height: auto; ">
+  </a>
+</div>
+
 ## 1. Overview
 
 The Media Slider Plugin allows you to showcase your media files in a dynamic slider. With a few lines of configuration in your Obsidian notes, you can display media with smooth transitions, add interactive notes, draw on images, and even enable audio/video visualizations. It’s designed to be highly customizable and user-friendly.
