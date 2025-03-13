@@ -251,5 +251,5 @@ Happy sliding!
 If you encounter any issues or have suggestions, Create an issue on GitHub
     
 ## Support the development:
-![BuyMeCoffee](buymeacoffee.com/amatya_aditya)
+
 <a href="https://www.buymeacoffee.com/amatya_aditya"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a book&emoji=📓&slug=amatya_aditya&button_colour=5F7FFF&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" /></a>
