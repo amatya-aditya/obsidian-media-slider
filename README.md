@@ -1,12 +1,14 @@
 # Media Slider 
 
-
 ![release](https://img.shields.io/github/v/release/amatya-aditya/obsidian-media-slider?style=flat-square&color=573E7A&label=release)
 ![downloads](https://img.shields.io/github/downloads/amatya-aditya/obsidian-media-slider/total?style=flat-square&color=94k&label=downloads)
 ![license](https://img.shields.io/github/license/amatya-aditya/obsidian-media-slider?style=flat-square&color=AGPL-3.0-orange&label=license)
 
-
 <a href="https://www.buymeacoffee.com/amatya_aditya"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a book&emoji=📓&slug=amatya_aditya&button_colour=5F7FFF&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" /></a>
+  <a href="https://www.youtube.com/watch?v=Ie73HjSW85Y" target="_blank">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" 
+         style="width: 50px; height: auto; ">
+  </a>
 
 ![image](https://github.com/user-attachments/assets/7b19f451-8deb-4961-990e-0643d26af010)
 
@@ -17,11 +19,7 @@
     <img src="https://img.youtube.com/vi/Ie73HjSW85Y/0.jpg" style="width: 65%; ">
   </a>
 
-  <!-- Play Button -->
-  <a href="https://www.youtube.com/watch?v=Ie73HjSW85Y" target="_blank">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" 
-         style="width: 50px; height: auto; ">
-  </a>
+  
 
 
 ## 1. Overview
