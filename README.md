@@ -62,13 +62,14 @@ carouselShowThumbnails: true
 thumbnailPosition: bottom
 captionMode: overlay
 autoplay: false
-slideshowSpeed: 5
+slideshowSpeed: 0
 width: 100%
 height: 300px
 transitionEffect: fade
 transitionDuration: 500
 enhancedView: true
 interactiveNotes: true
+compression: 0.8
 ---
 
 ![[image1.png]]
