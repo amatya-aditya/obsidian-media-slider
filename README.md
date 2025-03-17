@@ -1,26 +1,38 @@
 <h1 align="center">Media Slider</h1>
-<h4 align="center">A container to group the similar images and other medias to reduce the vertical space in note</h4>
----
+
 <p align="center">
-![release](https://img.shields.io/github/v/release/amatya-aditya/obsidian-media-slider?style=flat-square&color=573E7A&label=release)
-![downloads](https://img.shields.io/github/downloads/amatya-aditya/obsidian-media-slider/total?style=flat-square&color=94k&label=downloads)
-![license](https://img.shields.io/github/license/amatya-aditya/obsidian-media-slider?style=flat-square&color=AGPL-3.0-orange&label=license)
+  <img  src="https://raw.githubusercontent.com/amatya-aditya/obsidian-media-slider/main/assets/pic1.png">
+</p>
+
+<h4 align="center">A container to group the similar images and other medias to reduce the vertical space in note</h4>
+
+
+<p align="center">
+  <a href="https://github.com/amatya-aditya/obsidian-media-slider/releases/latest">
+		<img src="https://img.shields.io/github/v/release/amatya-aditya/obsidian-media-slider?style=flat-square&color=573E7A&label=release">
+	</a>
+  <img src="https://img.shields.io/github/release-date/amatya-aditya/obsidian-media-slider">
+	<a href="https://github.com/amatya-aditya/obsidian-media-slider/blob/main/LICENSE">
+		<img src="https://img.shields.io/github/license/amatya-aditya/obsidian-media-slider">
+	</a>
+	<img src="https://img.shields.io/github/downloads/amatya-aditya/obsidian-media-slider/total">
+	<a href="https://github.com/amatya-aditya/obsidian-media-slider/issues">
+		<img src="https://img.shields.io/github/issues/amatya-aditya/obsidian-media-slider">
+	</a>
+
 </p>
 
 <p align="center">
 <a href="https://www.buymeacoffee.com/amatya_aditya"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a book&emoji=📓&slug=amatya_aditya&button_colour=5F7FFF&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" /></a>
 </p>
 
+
 <p align="center">
   <a href="https://www.youtube.com/watch?v=Ie73HjSW85Y" target="_blank">
     <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" 
          style="width: 50px; height: auto; ">
   </a>
-
-![image](https://github.com/user-attachments/assets/7b19f451-8deb-4961-990e-0643d26af010)
-
 </p>
-
 
 ## Overview
 
