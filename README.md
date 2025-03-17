@@ -1,10 +1,17 @@
-# Media Slider 
-
+<h1 align="center">Media Slider</h1>
+<h4 align="center">A container to group the similar images and other medias to reduce the vertical space in note</h4>
+---
+<p align="center">
 ![release](https://img.shields.io/github/v/release/amatya-aditya/obsidian-media-slider?style=flat-square&color=573E7A&label=release)
 ![downloads](https://img.shields.io/github/downloads/amatya-aditya/obsidian-media-slider/total?style=flat-square&color=94k&label=downloads)
 ![license](https://img.shields.io/github/license/amatya-aditya/obsidian-media-slider?style=flat-square&color=AGPL-3.0-orange&label=license)
+</p>
 
+<p align="center">
 <a href="https://www.buymeacoffee.com/amatya_aditya"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a book&emoji=📓&slug=amatya_aditya&button_colour=5F7FFF&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" /></a>
+</p>
+
+<p align="center">
   <a href="https://www.youtube.com/watch?v=Ie73HjSW85Y" target="_blank">
     <img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg" 
          style="width: 50px; height: auto; ">
@@ -12,14 +19,15 @@
 
 ![image](https://github.com/user-attachments/assets/7b19f451-8deb-4961-990e-0643d26af010)
 
+</p>
 
 
-## 1. Overview
+## Overview
 
 The Media Slider Plugin is a powerful tool for displaying images, videos, audio files, PDFs, and even Markdown content in a beautiful, interactive slider within Obsidian. In addition to the basic slideshow features, this plugin supports interactive notes, drawing annotations, audio/video visualizers, and a variety of smooth transition effects. This guide will walk you through the features and explain how to set everything up.
 
 
-## 2. Installation
+## Installation
 
 The plugin is available through Obsidian as a community plugin.
 
@@ -31,7 +39,7 @@ The plugin is available through Obsidian as a community plugin.
   4.  Enable the plugin in the Obsidian settings under the "Community plugins" section. You might have to restart Obsidian to see the plugin.
 
 
-## 3. Creating a Media Slider
+## Creating a Media Slider
 
 To create a slider in your note, wrap your media list in a code block tagged with media-slider. For example:
 ```
@@ -68,7 +76,7 @@ interactiveNotes: true
 
 ---
 
-## 4. YAML Metadata Options
+## YAML Metadata Options
 
 Inside the YAML block at the top of your media-slider code block, you can customize various options:
 
@@ -107,7 +115,7 @@ Inside the YAML block at the top of your media-slider code block, you can custom
 
 ---
 
-## 5. Supported Media Formats
+## Supported Media Formats
 
 The plugin supports a variety of file types:
 
@@ -121,7 +129,7 @@ If a file type isn’t directly supported, a simple link will be provided.
 
 ---
 
-## 6. Transition Effects
+## Transition Effects
 
 You can choose from multiple transition effects to create smooth and appealing animations between slides. Set the `transitionEffect` option in your YAML block to one of the following:
 
@@ -159,7 +167,7 @@ You can choose from multiple transition effects to create smooth and appealing a
 
 ---
 
-## 7. Enhanced View
+## Enhanced View
 
 When `enhancedView` is enabled, you get two extra features:
 
@@ -171,13 +179,13 @@ When `enhancedView` is enabled, you get two extra features:
 
 ---
 
-## 8. Interactive Notes
+## Interactive Notes
 
 If you enable `interactiveNotes` in your YAML metadata, a notes button (📝) will appear on the slider. Clicking it will display a text area where you can add or edit notes specific to the current slide. These notes are saved persistently and will appear again when you return to that slide.
 
 ---
 
-## 9. Drawing Annotations
+## Drawing Annotations
 
 If you enable drawing annotations in the global plugin settings, a drawing button (✏️) will appear. Here’s how it works:
 
@@ -192,7 +200,7 @@ If you enable drawing annotations in the global plugin settings, a drawing butto
 
 ---
 
-## 10. Visualizer for Audio/Video
+## Visualizer for Audio/Video
 
 For media files that support audio or video, you can enable a wave-like visualizer:
 
@@ -206,7 +214,7 @@ This feature creates a dynamic visualization (like an audio waveform) over the m
 
 ---
 
-## 11. Thumbnails and Navigation
+## Thumbnails and Navigation
 
 - **Thumbnails:**  
   When enabled via `carouselShowThumbnails`, small preview images (or placeholders for non-image media) are displayed either below, above, or beside the slider based on the `thumbnailPosition` option. Click a thumbnail to jump to that slide.
@@ -219,20 +227,12 @@ This feature creates a dynamic visualization (like an audio waveform) over the m
 
 ---
 
-## 12. Automatic Slideshow
+## Automatic Slideshow
 
 If you set the `slideshowSpeed` option to a value greater than 0, the slider will automatically advance to the next slide after the specified number of seconds. This is ideal for presentations or unattended displays.
 
 ---
 
-## 13. Troubleshooting & Tips
-
-- **Media Not Showing:**  
-  Ensure that the media file paths are correct and that the files exist in your vault. Use Obsidian’s internal link syntax (e.g., `![[image.png]]`) for best results.
-  
-- **Transition Issues:**  
-  If a transition doesn’t appear as expected, try adjusting the `transitionDuration` or choose a different `transitionEffect`.
-  
 The Media Slider Plugin is designed to be both flexible and easy to use. By adjusting the YAML metadata in your code blocks and tweaking global settings, you can create a rich, interactive media display experience in Obsidian. Enjoy showcasing your media with smooth transitions, interactive notes, drawing annotations, and more!
 
 Happy sliding!
