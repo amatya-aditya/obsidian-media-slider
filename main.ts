@@ -11,11 +11,6 @@ interface MediaSliderSettings {
 	visualizerHeight: string;
 	attachmentLocation: "default" | "custom" | "same";
 	customAttachmentFolder: string;
-
-	// Image manipulation
-	// enableImageManipulation: boolean;
-
-	// Compression
 	compressionQuality: number;
 }
 
@@ -26,11 +21,6 @@ const DEFAULT_SETTINGS: MediaSliderSettings = {
 	visualizerHeight: "50px",
 	attachmentLocation: "default",
 	customAttachmentFolder: "SliderAttachment",
-
-	// Image manipulation
-	// enableImageManipulation: false,
-    
-	// Compression
 	compressionQuality: 0.7
 };
 
@@ -41,6 +31,8 @@ export default class MediaSliderPlugin extends Plugin {
 	private notesManager: NotesManager;
 	private drawingData: { [key: string]: string } = {};
 	private static sliderCounter = 0;
+	activeSliderContent: HTMLElement | null = null;
+    keydownHandlerInitialized: boolean = false;
 
 	async onload() {
 		console.log("Loading Media Slider Plugin...");
@@ -262,9 +254,9 @@ export default class MediaSliderPlugin extends Plugin {
 			autoplay: false,
 			slideshowSpeed: 0,
 			width: "100%",
-			height: "350px",
+			height: "380px",
 			transitionEffect: "fade",
-			transitionDuration: 100,
+			transitionDuration: 0.1,
 			enhancedView: true,
 			interactiveNotes: false,
 
@@ -549,26 +541,34 @@ export default class MediaSliderPlugin extends Plugin {
 					? settings.compression
 					: this.settings.compressionQuality;
 
-				if (/\.(png|jpg|jpeg|gif)$/i.test(fileName)) {
+				if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
 					try {
-						const compressedUrl = await compressImage(filePath, 800, 600, quality);
-						const img = mediaWrapper.createEl("img", { attr: { src: compressedUrl } });
-
-						// If image manipulation is enabled (globally or via YAML),
-						// create a toolbar of icons to manipulate this image.
-						// if (this.settings.enableImageManipulation || settings.enableImageManipulation) {
-						// 	this.addImageManipulationToolbar(sliderWrapper, img);
-						// }
-
-						img.classList.add("slider-media");
+						if (/\.gif$/i.test(fileName)) {
+							// For GIFs, avoid compression to preserve animation
+							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+							img.classList.add("slider-media", "gif-media");
+							this.addZoomPanSupport(img, sliderContainer);
+						}
+						// For SVG files, we don't need compression
+						else if (/\.svg$/i.test(fileName)) {
+							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+							img.classList.add("slider-media");
+							this.addZoomPanSupport(img, sliderContainer);
+						} else {
+							// For other image formats, use compression if possible
+							const compressedUrl = await compressImage(filePath, 1600, 1200, quality);
+							const img = mediaWrapper.createEl("img", { attr: { src: compressedUrl } });
+							img.classList.add("slider-media");
+							this.addZoomPanSupport(img, sliderContainer);
+						}
 					} catch (err) {
-						// const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
-						// if (this.settings.enableImageManipulation || settings.enableImageManipulation) {
-						// 	this.addImageManipulationToolbar(sliderWrapper, img);
-						// }
-						// img.classList.add("slider-media");
+						// If compression fails, fallback to direct display
+						console.error("Error processing image:", err);
+						const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+						img.classList.add("slider-media");
+						this.addZoomPanSupport(img, sliderContainer);
 					}
-				} else if (/\.(mp4|webm)$/i.test(fileName)) {
+				} else if (/\.(mp4|webm|mkv|mov|ogv)$/i.test(fileName)) {
 					const video = mediaWrapper.createEl("video", { attr: { src: filePath, controls: "true" } });
 					if (settings.autoplay) video.setAttribute("autoplay", "true");
 					video.classList.add("slider-media");
@@ -579,7 +579,7 @@ export default class MediaSliderPlugin extends Plugin {
 							height: this.settings.visualizerHeight
 						});
 					}
-				} else if (/\.(mp3|ogg|wav)$/i.test(fileName)) {
+				} else if (/\.(mp3|ogg|wav|flac|webm|3gp||m4a)$/i.test(fileName)) {
 					const audio = mediaWrapper.createEl("audio", { attr: { src: filePath, controls: "true" } });
 					audio.classList.add("slider-media", "audio-media");
 
@@ -590,10 +590,23 @@ export default class MediaSliderPlugin extends Plugin {
 						});
 					}
 				} else if (/\.(pdf)$/i.test(fileName)) {
-					const iframe = mediaWrapper.createEl("iframe", {
-						attr: { src: filePath, width: "100%", height: "100%" }
+					// Create a container with CSS classes instead of inline styles
+					const pdfContainer = mediaWrapper.createEl("div", { cls: "pdf-container" });
+					
+					// Create the iframe with proper attributes and CSS classes
+					const iframe = pdfContainer.createEl("iframe", {
+						attr: { 
+							src: filePath, 
+							width: "100%", 
+							height: "100%",
+							frameborder: "0",
+							allowfullscreen: "true"
+						}
 					});
-					iframe.classList.add("slider-media");
+					
+					iframe.classList.add("slider-media", "pdf-media");
+					
+					// The media-wrapper CSS class will be automatically targeted by the CSS selector
 				} else if (/\.(md)$/i.test(fileName)) {
 					const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
 					if (abstractFile && "extension" in abstractFile) {
@@ -705,25 +718,86 @@ export default class MediaSliderPlugin extends Plugin {
 		nextBtn.onclick = goNext;
 
 		sliderContent.tabIndex = 0;
-		sliderContent.addEventListener("mouseenter", () => sliderContent.focus());
-		sliderContent.addEventListener("mouseleave", () => sliderContent.blur());
-
-		sliderContent.addEventListener("keydown", (evt: KeyboardEvent) => {
-			if (evt.key === "ArrowLeft") goPrev();
-			else if (evt.key === "ArrowRight") goNext();
+		// Make this slider the active one on focus
+		sliderContent.addEventListener("focus", () => {
+		    this.activeSliderContent = sliderContent;
 		});
 
+		// Auto-focus on initialization
+		setTimeout(() => {
+		    sliderContent.focus();
+		    this.activeSliderContent = sliderContent;
+		}, 100);
+
+		// Setup a global document keydown handler if not already done
+		if (!this.keydownHandlerInitialized) {
+		    // Add this as a one-time setup
+		    document.addEventListener("keydown", (evt: KeyboardEvent) => {
+		        // If we have an active slider, handle its navigation
+		        if (this.activeSliderContent) {
+		            if (evt.key === "ArrowLeft") {
+		                // Find the associated goPrev function for this slider
+		                const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
+		                if (sliderWrapper) {
+		                    const prevBtn = sliderWrapper.querySelector(".slider-btn.prev") as HTMLElement;
+		                    if (prevBtn) {
+		                        prevBtn.click();
+		                        evt.preventDefault();
+		                    }
+		                }
+		            } else if (evt.key === "ArrowRight") {
+		                // Find the associated goNext function for this slider
+		                const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
+		                if (sliderWrapper) {
+		                    const nextBtn = sliderWrapper.querySelector(".slider-btn.next") as HTMLElement;
+		                    if (nextBtn) {
+		                        nextBtn.click();
+		                        evt.preventDefault();
+		                    }
+		                }
+		            }
+		        }
+		    });
+		
+		    // Also handle clicks outside the slider to maintain slider context
+		    document.addEventListener("click", (evt: MouseEvent) => {
+		        // Check if the click was inside a slider
+		        const clickedSlider = (evt.target as HTMLElement).closest(".slider-content");
+		        if (clickedSlider) {
+		            // Update active slider
+		            this.activeSliderContent = clickedSlider as HTMLElement;
+		        }
+		        // Note: We don't clear activeSliderContent when clicking outside
+		        // to maintain navigation context
+		    });
+		
+		    // Mark that we've initialized the global handler
+		    this.keydownHandlerInitialized = true;
+		}		
+
+		// Keep the original slider-specific key handler as backup
+		sliderContent.addEventListener("keydown", (evt: KeyboardEvent) => {
+		    if (evt.key === "ArrowLeft") {
+		        goPrev();
+		        evt.preventDefault();
+		    } else if (evt.key === "ArrowRight") {
+		        goNext();
+		        evt.preventDefault();
+		    }
+		});		
+
+		// Keep the original wheel handler
 		sliderContent.addEventListener("wheel", (evt: WheelEvent) => {
-			// Only interpret left-right wheel movement as next/prev
-			if (Math.abs(evt.deltaX) > Math.abs(evt.deltaY)) {
-				if (evt.deltaX > 30) {
-					goNext();
-					evt.preventDefault();
-				} else if (evt.deltaX < -30) {
-					goPrev();
-					evt.preventDefault();
-				}
-			}
+		    // Only interpret left-right wheel movement as next/prev
+		    if (Math.abs(evt.deltaX) > Math.abs(evt.deltaY)) {
+		        if (evt.deltaX > 30) {
+		            goNext();
+		            evt.preventDefault();
+		        } else if (evt.deltaX < -30) {
+		            goPrev();
+		            evt.preventDefault();
+		        }
+		    }
 		});
 
 		let touchStartX = 0;
@@ -747,7 +821,7 @@ export default class MediaSliderPlugin extends Plugin {
 				if (this.isYouTubeURL(fileName)) {
 					const thumbUrl = this.getYouTubeThumbnail(fileName);
 					thumbEl = thumbnailContainer.createEl("img", { attr: { src: thumbUrl }, cls: "thumbnail" });
-				} else if (/\.(png|jpg|jpeg|gif)$/i.test(fileName)) {
+				} else if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
 					thumbEl = thumbnailContainer.createEl("img", {
 						attr: { src: this.getMediaSource(fileName) },
 						cls: "thumbnail"
@@ -832,160 +906,284 @@ export default class MediaSliderPlugin extends Plugin {
 		container.appendChild(sliderWrapper);
 	}
 
-	// /**
-	//  * Creates a toolbar of icons for zoom, rotate, flip, etc.
-	//  * Automatically attaches mouse/keyboard events for panning and zooming.
-	//  */
-	// private addImageManipulationToolbar(sliderWrapper: HTMLElement, img: HTMLImageElement) {
-	// 	// If we already have a toolbar, remove it (so we can create a fresh one).
-	// 	const oldToolbar = sliderWrapper.querySelector(".manipulation-toolbar");
-	// 	if (oldToolbar) oldToolbar.remove();
+	// Zoom and Pan Support
 
-	// 	const toolbar = sliderWrapper.createDiv("manipulation-toolbar");
-
-	// 	// Keep track of the current transform state.
-	// 	let currentTransform = {
-	// 		scale: 1,
-	// 		translateX: 0,
-	// 		translateY: 0,
-	// 		rotate: 0,
-	// 		flipH: false,
-	// 		flipV: false
-	// 	};
-
-	// 	const updateTransform = () => {
-	// 		// Build a transform string
-	// 		let transformStr = `translate(${currentTransform.translateX}px, ${currentTransform.translateY}px)`;
-	// 		transformStr += ` scale(${currentTransform.scale})`;
-	// 		transformStr += ` rotate(${currentTransform.rotate}deg)`;
-	// 		if (currentTransform.flipH) {
-	// 			transformStr += " scaleX(-1)";
-	// 		}
-	// 		if (currentTransform.flipV) {
-	// 			transformStr += " scaleY(-1)";
-	// 		}
-	// 		img.style.transform = transformStr;
-	// 		img.style.transformOrigin = "center center";
-	// 	};
-
-	// 	// Mouse drag for panning
-	// 	let isDragging = false;
-	// 	let startX = 0, startY = 0;
-	// 	const onMouseDown = (e: MouseEvent) => {
-	// 		isDragging = true;
-	// 		startX = e.clientX;
-	// 		startY = e.clientY;
-	// 	};
-	// 	const onMouseMove = (e: MouseEvent) => {
-	// 		if (!isDragging) return;
-	// 		const dx = e.clientX - startX;
-	// 		const dy = e.clientY - startY;
-	// 		currentTransform.translateX += dx;
-	// 		currentTransform.translateY += dy;
-	// 		startX = e.clientX;
-	// 		startY = e.clientY;
-	// 		updateTransform();
-	// 	};
-	// 	const onMouseUp = () => {
-	// 		isDragging = false;
-	// 	};
-
-	// 	img.addEventListener("mousedown", onMouseDown);
-	// 	window.addEventListener("mousemove", onMouseMove);
-	// 	window.addEventListener("mouseup", onMouseUp);
-
-	// 	// Mouse wheel for zoom
-	// 	const onWheel = (e: WheelEvent) => {
-	// 		e.preventDefault();
-	// 		const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-	// 		currentTransform.scale *= zoomFactor;
-	// 		updateTransform();
-	// 	};
-	// 	img.addEventListener("wheel", onWheel);
-
-	// 	// (Optional) Arrow keys for panning
-	// 	const onKeyDown = (e: KeyboardEvent) => {
-	// 		const step = 10;
-	// 		if (e.key === "ArrowUp") {
-	// 			currentTransform.translateY -= step;
-	// 		} else if (e.key === "ArrowDown") {
-	// 			currentTransform.translateY += step;
-	// 		} else if (e.key === "ArrowLeft") {
-	// 			currentTransform.translateX -= step;
-	// 		} else if (e.key === "ArrowRight") {
-	// 			currentTransform.translateX += step;
-	// 		}
-	// 		updateTransform();
-	// 	};
-	// 	window.addEventListener("keydown", onKeyDown);
-
-	// 	// Clean up if the user navigates away or the slider re-renders
-	// 	const cleanup = () => {
-	// 		img.removeEventListener("mousedown", onMouseDown);
-	// 		window.removeEventListener("mousemove", onMouseMove);
-	// 		window.removeEventListener("mouseup", onMouseUp);
-	// 		img.removeEventListener("wheel", onWheel);
-	// 		window.removeEventListener("keydown", onKeyDown);
-	// 	};
-	// 	// You could call cleanup() in other lifecycle events if needed.
-
-	// 	// Create a set of icon buttons for transformations:
-	// 	// Zoom in
-	// 	const zoomInBtn = toolbar.createEl("button", { text: "🔍+", cls: "manipulation-icon" });
-	// 	zoomInBtn.onclick = () => {
-	// 		currentTransform.scale *= 1.1;
-	// 		updateTransform();
-	// 	};
-
-	// 	// Zoom out
-	// 	const zoomOutBtn = toolbar.createEl("button", { text: "🔍-", cls: "manipulation-icon" });
-	// 	zoomOutBtn.onclick = () => {
-	// 		currentTransform.scale *= 0.9;
-	// 		updateTransform();
-	// 	};
-
-	// 	// Rotate left
-	// 	const rotateLeftBtn = toolbar.createEl("button", { text: "↶", cls: "manipulation-icon" });
-	// 	rotateLeftBtn.onclick = () => {
-	// 		currentTransform.rotate -= 15;
-	// 		updateTransform();
-	// 	};
-
-	// 	// Rotate right
-	// 	const rotateRightBtn = toolbar.createEl("button", { text: "↷", cls: "manipulation-icon" });
-	// 	rotateRightBtn.onclick = () => {
-	// 		currentTransform.rotate += 15;
-	// 		updateTransform();
-	// 	};
-
-	// 	// Flip horizontal
-	// 	const flipHBtn = toolbar.createEl("button", { text: "⇄", cls: "manipulation-icon" });
-	// 	flipHBtn.onclick = () => {
-	// 		currentTransform.flipH = !currentTransform.flipH;
-	// 		updateTransform();
-	// 	};
-
-	// 	// Flip vertical
-	// 	const flipVBtn = toolbar.createEl("button", { text: "⇅", cls: "manipulation-icon" });
-	// 	flipVBtn.onclick = () => {
-	// 		currentTransform.flipV = !currentTransform.flipV;
-	// 		updateTransform();
-	// 	};
-
-	// 	// Reset
-	// 	const resetBtn = toolbar.createEl("button", { text: "⟲", cls: "manipulation-icon" });
-	// 	resetBtn.onclick = () => {
-	// 		currentTransform = {
-	// 			scale: 1,
-	// 			translateX: 0,
-	// 			translateY: 0,
-	// 			rotate: 0,
-	// 			flipH: false,
-	// 			flipV: false
-	// 		};
-	// 		updateTransform();
-	// 	};
-	// }
+	/**
+	 * Adds zoom and pan functionality to an image element
+	 * @param img - The image element to add zoom/pan support to
+	 * @param container - The container element that holds the image
+	 */
+	private addZoomPanSupport(img: HTMLImageElement, container: HTMLElement): void {
+	    // State variables for zoom and pan
+	    let scale = 1;
+	    let translateX = 0;
+	    let translateY = 0;
+	    let isDragging = false;
+	    let startX = 0;
+	    let startY = 0;
+	    let initialScale = 1;
+	
+	    const minScale = 1;
+	    const maxScale = 5;
+	
+	    // Add zoom controls container
+	    const zoomControls = container.createEl("div", { cls: "zoom-controls" });
+	
+	    // Add zoom in button
+	    const zoomInBtn = zoomControls.createEl("button", { text: "🔍+", cls: "zoom-btn" });
+	
+	    // Add zoom out button
+	    const zoomOutBtn = zoomControls.createEl("button", { text: "🔍-", cls: "zoom-btn" });
+	
+	    // Add reset button
+	    const resetBtn = zoomControls.createEl("button", { text: "↺", cls: "zoom-btn" });
+	
+	    // Add CSS classes for cursor
+	    img.classList.add("can-zoom");
+	
+	    // Helper function to apply transform
+	    const applyTransform = () => {
+	        img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+	        img.classList.add("img-transformed");
+		
+	        if (isDragging) {
+	            img.classList.add("dragging");
+	        } else {
+	            img.classList.remove("dragging");
+	        }
+		
+	        // Show/hide zoom controls based on zoom state
+	        zoomControls.style.opacity = scale > 1 ? "1" : "0.5";
+	        zoomOutBtn.disabled = scale <= minScale;
+	        resetBtn.disabled = scale <= minScale && translateX === 0 && translateY === 0;
+		
+	        // Update cursor classes
+	        if (scale > 1) {
+	            img.classList.add("zoomed");
+	        } else {
+	            img.classList.remove("zoomed");
+	        }
+	    };
+	
+	    // Helper function to handle zoom
+	    const zoom = (delta: number, centerX: number, centerY: number) => {
+	        // Capture original dimensions and position
+	        const rect = img.getBoundingClientRect();
+	        const imgCenterX = rect.left + rect.width / 2;
+	        const imgCenterY = rect.top + rect.height / 2;
+		
+	        // Calculate offset from center
+	        const offsetX = centerX - imgCenterX;
+	        const offsetY = centerY - imgCenterY;
+		
+	        // Calculate old scale and new scale
+	        const oldScale = scale;
+	        scale = Math.max(minScale, Math.min(maxScale, scale + delta));
+		
+	        // Only apply zoom if scale changed
+	        if (scale !== oldScale) {
+	            // Adjust translation to zoom toward cursor position
+	            if (delta > 0) {
+	                translateX -= offsetX * (scale / oldScale - 1);
+	                translateY -= offsetY * (scale / oldScale - 1);
+	            } else {
+	                // When zooming out, gradually move back to center
+	                translateX = translateX * (scale / oldScale);
+	                translateY = translateY * (scale / oldScale);
+	            }
+			
+	            applyTransform();
+	            return true;
+	        }
+	        return false;
+	    };
+	
+	    // Reset function
+	    const resetZoomPan = () => {
+	        scale = 1;
+	        translateX = 0;
+	        translateY = 0;
+	        applyTransform();
+	    };
+	
+	    // Button event handlers
+	    zoomInBtn.addEventListener("click", (e) => {
+	        e.stopPropagation();
+	        const rect = container.getBoundingClientRect();
+	        zoom(0.5, rect.left + rect.width / 2, rect.top + rect.height / 2);
+	    });
+	
+	    zoomOutBtn.addEventListener("click", (e) => {
+	        e.stopPropagation();
+	        const rect = container.getBoundingClientRect();
+	        zoom(-0.5, rect.left + rect.width / 2, rect.top + rect.height / 2);
+	    });
+	
+	    resetBtn.addEventListener("click", (e) => {
+	        e.stopPropagation();
+	        resetZoomPan();
+	    });
+	
+	    // Mouse wheel zoom handler
+	    container.addEventListener("wheel", (e: WheelEvent) => {
+	        // Check if ctrl key is pressed for zoom, otherwise let the slider's wheel handler work
+	        if (e.ctrlKey || e.metaKey) {
+	            e.preventDefault();
+	            const delta = e.deltaY < 0 ? 0.2 : -0.2;
+	            zoom(delta, e.clientX, e.clientY);
+	        }
+	    }, { passive: false });
+	
+	    // Pan handlers (mouse)
+	    img.addEventListener("mousedown", (e: MouseEvent) => {
+	        if (scale > 1) {
+	            isDragging = true;
+	            startX = e.clientX - translateX;
+	            startY = e.clientY - translateY;
+	            e.preventDefault();
+	        }
+	    });
+	
+	    document.addEventListener("mousemove", (e: MouseEvent) => {
+	        if (isDragging) {
+	            translateX = e.clientX - startX;
+	            translateY = e.clientY - startY;
+	            applyTransform();
+	            e.preventDefault();
+	        }
+	    });
+	
+	    document.addEventListener("mouseup", () => {
+	        isDragging = false;
+	        applyTransform(); // Update classes
+	    });
+	
+	    // Touch handlers for mobile
+	    img.addEventListener("touchstart", (e: TouchEvent) => {
+	        if (e.touches.length === 1 && scale > 1) {
+	            isDragging = true;
+	            startX = e.touches[0].clientX - translateX;
+	            startY = e.touches[0].clientY - translateY;
+	            e.preventDefault();
+	        } else if (e.touches.length === 2) {
+	            // Handle pinch zoom
+	            e.preventDefault();
+	            const touch1 = e.touches[0];
+	            const touch2 = e.touches[1];
+	            initialScale = scale;
+	            startX = (touch1.clientX + touch2.clientX) / 2;
+	            startY = (touch1.clientY + touch2.clientY) / 2;
+	        }
+	    }, { passive: false });
+	
+	    img.addEventListener("touchmove", (e: TouchEvent) => {
+	        if (e.touches.length === 1 && isDragging) {
+	            translateX = e.touches[0].clientX - startX;
+	            translateY = e.touches[0].clientY - startY;
+	            applyTransform();
+	            e.preventDefault();
+	        } else if (e.touches.length === 2) {
+	            // Handle pinch zoom
+	            e.preventDefault();
+	            const touch1 = e.touches[0];
+	            const touch2 = e.touches[1];
+			
+	            // Calculate distance between fingers
+	            const currentDistance = Math.hypot(
+	                touch1.clientX - touch2.clientX,
+	                touch1.clientY - touch2.clientY
+	            );
+			
+	            const centerX = (touch1.clientX + touch2.clientX) / 2;
+	            const centerY = (touch1.clientY + touch2.clientY) / 2;
+			
+	            // Calculate new scale based on finger distance change
+	            const newScale = Math.max(minScale, Math.min(maxScale, initialScale * (currentDistance / 150)));
+			
+	            if (newScale !== scale) {
+	                scale = newScale;
+	                applyTransform();
+	            }
+	        }
+	    }, { passive: false });
+	
+	    img.addEventListener("touchend", () => {
+	        isDragging = false;
+	        applyTransform(); // Update classes
+	    });
+	
+	    // Keyboard zoom and pan
+	    container.addEventListener("keydown", (e: KeyboardEvent) => {
+	        // Make sure this isn't intercepted for navigation
+	        if (e.ctrlKey || e.metaKey || e.altKey) {
+	            const rect = container.getBoundingClientRect();
+	            const centerX = rect.left + rect.width / 2;
+	            const centerY = rect.top + rect.height / 2;
+			
+	            switch (e.key) {
+	                case "=":
+	                case "+":
+	                    if (e.ctrlKey || e.metaKey) {
+	                        e.preventDefault();
+	                        zoom(0.2, centerX, centerY);
+	                    }
+	                    break;
+	                case "-":
+	                    if (e.ctrlKey || e.metaKey) {
+	                        e.preventDefault();
+	                        zoom(-0.2, centerX, centerY);
+	                    }
+	                    break;
+	                case "0":
+	                    if (e.ctrlKey || e.metaKey) {
+	                        e.preventDefault();
+	                        resetZoomPan();
+	                    }
+	                    break;
+	                case "ArrowUp":
+	                    if (scale > 1 && (e.ctrlKey || e.altKey)) {
+	                        e.preventDefault();
+	                        translateY += 20;
+	                        applyTransform();
+	                    }
+	                    break;
+	                case "ArrowDown":
+	                    if (scale > 1 && (e.ctrlKey || e.altKey)) {
+	                        e.preventDefault();
+	                        translateY -= 20;
+	                        applyTransform();
+	                    }
+	                    break;
+	                case "ArrowLeft":
+	                    if (scale > 1 && (e.ctrlKey || e.altKey)) {
+	                        e.preventDefault();
+	                        translateX += 20;
+	                        applyTransform();
+	                    }
+	                    break;
+	                case "ArrowRight":
+	                    if (scale > 1 && (e.ctrlKey || e.altKey)) {
+	                        e.preventDefault();
+	                        translateX -= 20;
+	                        applyTransform();
+	                    }
+	                    break;
+	            }
+	        }
+	    });
+	
+	    // Double-click to zoom in/out
+	    img.addEventListener("dblclick", (e: MouseEvent) => {
+	        if (scale > 1) {
+	            resetZoomPan();
+	        } else {
+	            zoom(1, e.clientX, e.clientY);
+	        }
+	    });
+	
+	    // Initial setup
+	    applyTransform();
+	}
 
 }
 
@@ -1075,19 +1273,7 @@ class MediaSliderSettingTab extends PluginSettingTab {
 				})
 			);
 
-		// // Image manipulation
-		// new Setting(containerEl)
-		// 	.setName("Enable image manipulation")
-		// 	.setDesc("If enabled, images can be panned, zoomed, rotated, flipped with on-screen toolbar.")
-		// 	.addToggle(toggle => toggle
-		// 		.setValue(this.plugin.settings.enableImageManipulation)
-		// 		.onChange(async (value) => {
-		// 			this.plugin.settings.enableImageManipulation = value;
-		// 			await this.plugin.saveSettings();
-		// 			this.plugin.refreshSliders();
-		// 		})
-		// 	);
-
+		
 
 		// Compression
 		new Setting(containerEl)

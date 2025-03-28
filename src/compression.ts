@@ -1,7 +1,7 @@
 export async function compressImage(
 	imageUrl: string,
-	maxWidth: number = 800,
-	maxHeight: number = 600,
+	maxWidth: number = 1600,
+	maxHeight: number = 1200,
 	quality: number = 0.7
 ): Promise<string> {
 	return new Promise((resolve, reject) => {

@@ -254,10 +254,12 @@ Happy sliding!
 
 # Roadmap
 
-- [ ] Paste the image directly in container without opening the codeblock
-- [ ] Render YouTube Videos as media-slider element
-- [ ] Provide Settings for customizing compression ratio
-- [ ] Zoom and Pan
+- [x] Support pasting image directly in codeblock without opening it
+- [x] Render YouTube Videos as media-slider element
+- [x] Customization of compression ratio
+- [x] Support Zoom and Pan
+- [ ] Comparing two images
+- [ ] Writing Caption directly from UI
 
 
 # Support
