@@ -32,37 +32,26 @@
          style="width: 50px; height: auto; ">
   </a>
 </p>
-
+```
 ## 📌 Key Features:
 
-    🎥 Multiple Media Support: Images, videos (including YouTube), audio files, PDFs, Markdown files.
-
-    🔍 Zoom & Pan: Explore media closely with built-in zoom and pan functionality.
-
-    🎬 Transition Effects: Fade, slide, zoom, flip, rotate, blur, squeeze, and more.
-
-    🖼️ Thumbnail Carousel: Quickly navigate slides with customizable thumbnail positioning.
-
-    ✨ Enhanced View:
-
+🎥 Multiple Media Support: Images, videos (including YouTube), audio files, PDFs, Markdown files
+🔍 Zoom & Pan: Explore media closely with built-in zoom and pan functionality.
+🎬 Transition Effects: Fade, slide, zoom, flip, rotate, blur, squeeze, and more.
+🖼️ Thumbnail Carousel: Quickly navigate slides with customizable thumbnail positioning.
+✨ Enhanced View:
         🔳 Fullscreen Mode
-
         📋 Quick Copy Markdown Image Link
-
-    📝 Interactive Notes: Write and persistently save notes specific to each slide.
-
-    ✏️ Drawing Annotations: Annotate directly onto images with drawing tools.
-
-    🌊 Audio/Video Visualizer: Dynamic waveform visualization for media playback.
-
-    ▶️ Automatic Slideshow: Customizable autoplay with adjustable slideshow speed.
-
-    🔧 Customizable Compression: Optimize media quality and performance.
+📝 Interactive Notes: Write and persistently save notes specific to each slide.
+✏️ Drawing Annotations: Annotate directly onto images with drawing tools.
+🌊 Audio/Video Visualizer: Dynamic waveform visualization for media playback.
+▶️ Automatic Slideshow: Customizable autoplay with adjustable slideshow speed.
+🔧 Customizable Compression: Optimize media quality and performance.
 
 🎉 Enhance your Obsidian notes with seamless, interactive media experiences!
 
 Happy sliding! 🚀
-
+```
 ## Installation
 
 The plugin is available through Obsidian as a community plugin.
