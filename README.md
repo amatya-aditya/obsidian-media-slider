@@ -1,10 +1,9 @@
 <h1 align="center">Media Slider</h1>
+<h4 align="center">A container to group the similar images and other medias to reduce the vertical space in note</h4>
 
 <p align="center">
   <img  src="https://github.com/amatya-aditya/obsidian-media-slider/blob/master/assets/pic2.png">
 </p>
-
-<h4 align="center">A container to group the similar images and other medias to reduce the vertical space in note</h4>
 
 
 <p align="center">
@@ -34,10 +33,35 @@
   </a>
 </p>
 
-## Overview
+## 📌 Key Features:
 
-The Media Slider Plugin is a powerful tool for displaying images, videos, audio files, PDFs, and even Markdown content in a beautiful, interactive slider within Obsidian. In addition to the basic slideshow features, this plugin supports interactive notes, drawing annotations, audio/video visualizers, and a variety of smooth transition effects. This guide will walk you through the features and explain how to set everything up.
+    🎥 Multiple Media Support: Images, videos (including YouTube), audio files, PDFs, Markdown files.
 
+    🔍 Zoom & Pan: Explore media closely with built-in zoom and pan functionality.
+
+    🎬 Transition Effects: Fade, slide, zoom, flip, rotate, blur, squeeze, and more.
+
+    🖼️ Thumbnail Carousel: Quickly navigate slides with customizable thumbnail positioning.
+
+    ✨ Enhanced View:
+
+        🔳 Fullscreen Mode
+
+        📋 Quick Copy Markdown Image Link
+
+    📝 Interactive Notes: Write and persistently save notes specific to each slide.
+
+    ✏️ Drawing Annotations: Annotate directly onto images with drawing tools.
+
+    🌊 Audio/Video Visualizer: Dynamic waveform visualization for media playback.
+
+    ▶️ Automatic Slideshow: Customizable autoplay with adjustable slideshow speed.
+
+    🔧 Customizable Compression: Optimize media quality and performance.
+
+🎉 Enhance your Obsidian notes with seamless, interactive media experiences!
+
+Happy sliding! 🚀
 
 ## Installation
 
@@ -75,9 +99,8 @@ compression: 0.8
 ![[image1.png]]
 ![[video1.mp4]]
 ![[audio1.mp3]]
-![](https://dfstudio-d420.kxcdn.com/wordpress/wp-content/uploads/2019/06/digital_camera_photo-1080x675.jpg)
+![](https://raw.githubusercontent.com/amatya-aditya/obsidian-media-slider/refs/heads/master/assets/zoom-pan.gif)
 ![[some.pdf]]
-![[gif1.gif]]
 
 ```
 
@@ -132,8 +155,8 @@ Inside the YAML block at the top of your media-slider code block, you can custom
 
 The plugin supports a variety of file types:
 
-- **Images:** PNG, JPG, JPEG, GIF  
-- **Videos:** MP4, WebM  
+- **Images:** PNG, JPG, JPEG, GIF, etc  
+- **Videos:** MP4, WebM, etc  
 - **Audio:** MP3, OGG, WAV  
 - **PDFs:** Displayed in an iframe  
 - **Markdown Files:** Rendered within the slider
