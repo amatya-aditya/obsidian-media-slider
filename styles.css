@@ -54,7 +54,6 @@ img.slider-media {
 .media-wrapper {
 	margin: auto 0;
     height: 100%;
-    padding: 10px 5px;
 	overflow: auto;
 	scrollbar-width: none;  /* Firefox */
 	-ms-overflow-style: none;  /* IE 10+ */

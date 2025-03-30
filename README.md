@@ -1,7 +1,7 @@
 <h1 align="center">Media Slider</h1>
 
 <p align="center">
-  <img  src="https://github.com/amatya-aditya/obsidian-media-slider/blob/master/assets/pic1.png">
+  <img  src="https://github.com/amatya-aditya/obsidian-media-slider/blob/master/assets/pic2.png">
 </p>
 
 <h4 align="center">A container to group the similar images and other medias to reduce the vertical space in note</h4>
