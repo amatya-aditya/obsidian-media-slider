@@ -32,8 +32,9 @@
          style="width: 50px; height: auto; ">
   </a>
 </p>
+
 ```
-## 📌 Key Features:
+📌 Key Features:
 
 🎥 Multiple Media Support: Images, videos (including YouTube), audio files, PDFs, Markdown files
 🔍 Zoom & Pan: Explore media closely with built-in zoom and pan functionality.
