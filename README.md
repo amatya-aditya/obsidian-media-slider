@@ -71,28 +71,111 @@ To create a slider in your note, wrap your media list in a code block tagged wit
 ```
 ```media-slider
 ---
+# ──────────────────────────────────────────────────────────────────────────────
+# GENERAL
+# ──────────────────────────────────────────────────────────────────────────────
+
+# A unique ID (string) to keep this slider’s state separate from others.
 sliderId: my-slider
+
+# Show a thumbnail “filmstrip” alongside the main slider?
+# true  → thumbnails visible  
+# false → thumbnails hidden
 carouselShowThumbnails: true
+
+# Where to place the thumbnail strip:
+# top, bottom, left, or right
 thumbnailPosition: bottom
+
+# How to render captions (if you append “|Your caption” to a file link):
+# none    → no captions  
+# overlay → text over the image  
+# below   → text beneath the image
 captionMode: overlay
+
+# ──────────────────────────────────────────────────────────────────────────────
+# SLIDE BEHAVIOR
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Automatically cycle slides?
 autoplay: false
+
+# Time between slides (milliseconds) when autoplay=true
 slideshowSpeed: 0
+
+# E.g. "100%", "800px", "50vw" — controls the slider’s container width
 width: 100%
+
+# E.g. "300px", "50vh" — fixes the container’s height
 height: 300px
+
+# Transition between slides:
+# fade, slide, zoom, none
 transitionEffect: fade
+
+# How long the transition takes (ms)
 transitionDuration: 500
+
+# true → enable right-click & drag to pan/zoom on images  
+# false → standard <img> behavior
 enhancedView: true
+
+# true → show your “interactive notes” overlay on each slide
 interactiveNotes: true
+
+# JPEG/WebP compression (0–1) when inserting/pasting images  
+# 0 = max compression, 1 = original quality
 compression: 0.8
+
+# Array of file extensions to include in your vault folder scan
+fileTypes:
+  - "jpg"
+  - "png"
+  - "mp4"
+
+# true → recurse into subfolders when you give a folder path  
+# false → only scan that exact folder
+recursive: true
+
+
+compareMode:
+  # master toggle
+  enabled: true
+
+  # orientation of the divider:
+  # vertical   → left/right panes  
+  # horizontal → top/bottom panes
+  orientation: "vertical"
+
+  # initial divider position (percentage 0–100)
+  initialPosition: 50
+
+  # show “Before” / “After” labels?
+  showLabels: true
+
+  # label text for the first pane
+  label1: "Before"
+
+  # label text for the second pane
+  label2: "After"
+
 ---
 
 ![[image1.png]]
-![[video1.mp4]]
-![[audio1.mp3]]
-![](https://raw.githubusercontent.com/amatya-aditya/obsidian-media-slider/refs/heads/master/assets/zoom-pan.gif)
-![[some.pdf]]
+![[video1.mp4]]         # mp4 slides supported
+![[audio1.mp3]]         # audio will appear as a media control
+![](https://…/zoom-pan.gif)  # external URLs work too
 
-```
+![[some.pdf]]           # PDF pages will be rendered as images
+
+[[folder/subfolder/]]   # scan an entire folder of supported fileTypes
+
+# Compare-mode grouping: use the same group ID (e.g. “1”) on two lines:
+![[compare1.png||1-1]]
+![[compare2.png||1-2]]
+
+![[image3.png]]
+
 
 - **YAML Metadata:**  
   The section between the `---` lines is used to configure slider behavior (see next section).
