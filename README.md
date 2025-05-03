@@ -71,10 +71,6 @@ To create a slider in your note, wrap your media list in a code block tagged wit
 ```
 ```media-slider
 ---
-# ──────────────────────────────────────────────────────────────────────────────
-# GENERAL
-# ──────────────────────────────────────────────────────────────────────────────
-
 # A unique ID (string) to keep this slider’s state separate from others.
 sliderId: my-slider
 
@@ -92,10 +88,6 @@ thumbnailPosition: bottom
 # overlay → text over the image  
 # below   → text beneath the image
 captionMode: overlay
-
-# ──────────────────────────────────────────────────────────────────────────────
-# SLIDE BEHAVIOR
-# ──────────────────────────────────────────────────────────────────────────────
 
 # Automatically cycle slides?
 autoplay: false
@@ -173,8 +165,10 @@ compareMode:
 # Compare-mode grouping: use the same group ID (e.g. “1”) on two lines:
 ![[compare1.png||1-1]]
 ![[compare2.png||1-2]]
-
 ![[image3.png]]
+![[compare4.png||2-1]]
+![[compare5.png||2-2]]
+
 ````
 
 - **YAML Metadata:**  
