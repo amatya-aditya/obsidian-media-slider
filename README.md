@@ -175,7 +175,7 @@ compareMode:
 ![[compare2.png||1-2]]
 
 ![[image3.png]]
-
+````
 
 - **YAML Metadata:**  
   The section between the `---` lines is used to configure slider behavior (see next section).
