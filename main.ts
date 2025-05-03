@@ -3,15 +3,16 @@ import { compressImage } from "./src/compression";
 import { NotesManager } from "./src/notes";
 import { DrawingAnnotation } from "./src/drawing";
 import { Visualizer, VisualizerOptions } from "./src/visualizer";
+import { CompareMode, CompareOptions } from "./src/compareMode";
 
 interface MediaSliderSettings {
 	enableDrawingAnnotation: boolean;
 	enableVisualizer: boolean;
 	visualizerColor: string;
 	visualizerHeight: string;
-	attachmentLocation: "default" | "custom" | "same";
-	customAttachmentFolder: string;
 	compressionQuality: number;
+	enableCompression: boolean;
+	enableCompareMode: boolean; // New setting
 }
 
 const DEFAULT_SETTINGS: MediaSliderSettings = {
@@ -19,10 +20,12 @@ const DEFAULT_SETTINGS: MediaSliderSettings = {
 	enableVisualizer: false,
 	visualizerColor: "#00ff00",
 	visualizerHeight: "50px",
-	attachmentLocation: "default",
-	customAttachmentFolder: "SliderAttachment",
-	compressionQuality: 0.7
+	compressionQuality: 1,
+	enableCompression: true,
+	enableCompareMode: true // Default to true for better usability
 };
+
+
 
 export default class MediaSliderPlugin extends Plugin {
 	settings: MediaSliderSettings;
@@ -42,68 +45,13 @@ export default class MediaSliderPlugin extends Plugin {
 		await this.notesManager.load();
 		await this.loadDrawingData();
 
-		this.registerMarkdownCodeBlockProcessor("media-slider", (source, el, ctx) => {
-			this.createMediaSlider(source, el, ctx);
+		this.registerMarkdownCodeBlockProcessor("media-slider", async (source, el, ctx) => {
+			await this.createMediaSlider(source, el, ctx);
 		});
 
-		this.registerEvent(
-			this.app.workspace.on("editor-paste", async (evt: ClipboardEvent, editor: any) => {
-				const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (!mdView) return;
-
-				const clipboardData = evt.clipboardData;
-				if (!clipboardData) return;
-				for (const item of clipboardData.items) {
-					if (item.type.indexOf("image") !== -1) {
-						const file = item.getAsFile();
-						if (!file) continue;
-						const reader = new FileReader();
-						reader.onload = async (e) => {
-							const dataUrl = e.target?.result as string;
-							const response = await fetch(dataUrl);
-							const blob = await response.blob();
-							const arrayBuffer = await blob.arrayBuffer();
-							const uint8Array = new Uint8Array(arrayBuffer);
-
-							let folderPath: string;
-							if (this.settings.attachmentLocation === "default") {
-								folderPath = this.app.vault.getConfig("attachmentFolderPath") || "";
-							} else if (this.settings.attachmentLocation === "custom") {
-								folderPath = this.settings.customAttachmentFolder;
-							} else {
-								folderPath = mdView.file.parent.path;
-							}
-							if (folderPath && !this.app.vault.getAbstractFileByPath(folderPath)) {
-								try {
-									await this.app.vault.createFolder(folderPath);
-								} catch (error) {
-									console.error("Error creating folder:", error);
-								}
-							}
-							const newFileName = folderPath
-								? `${folderPath}/pasteimage-${Date.now()}.png`
-								: `pasteimage-${Date.now()}.png`;
-
-							try {
-								await this.app.vault.createBinary(newFileName, uint8Array);
-							} catch (error) {
-								console.error("Error creating pasted image file:", error);
-							}
-
-							const cmEditor = editor.cm;
-							const doc = cmEditor.getDoc();
-							const cursor = doc.getCursor();
-							doc.replaceRange(`[[${newFileName}]]\n`, cursor);
-
-							evt.preventDefault();
-						};
-						reader.readAsDataURL(file);
-						break;
-					}
-				}
-			})
-		);
+		
 	}
+
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -143,7 +91,6 @@ export default class MediaSliderPlugin extends Plugin {
 		}
 		await this.saveDrawingData();
 	}
-
 
 	private getCachedResourcePath(fileName: string): string {
 		if (this.filePathCache.has(fileName)) {
@@ -202,9 +149,14 @@ export default class MediaSliderPlugin extends Plugin {
 		}
 		const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
 		if (abstractFile && "extension" in abstractFile) {
-			const content = await this.app.vault.read(abstractFile);
-			this.markdownCache.set(fileName, content);
-			return content;
+			if (abstractFile instanceof TFile) {
+				const content = await this.app.vault.read(abstractFile);
+				this.markdownCache.set(fileName, content);
+				return "";
+			} else {
+				console.warn("Abstract file is not a TFile:", abstractFile);
+				return "";
+			}
 		}
 		return "";
 	}
@@ -219,6 +171,78 @@ export default class MediaSliderPlugin extends Plugin {
 		}) as T;
 	}
 
+	private async generateUniqueFileName(baseName: string, folderPath: string): Promise<string> {
+		let uniqueName = baseName;
+		let counter = 1;
+		while (await this.app.vault.adapter.exists(`${folderPath}/${uniqueName}`)) {
+			const extIndex = baseName.lastIndexOf(".");
+			const nameWithoutExt = extIndex !== -1 ? baseName.slice(0, extIndex) : baseName;
+			const ext = extIndex !== -1 ? baseName.slice(extIndex) : "";
+			uniqueName = `${nameWithoutExt}-${counter}${ext}`;
+			counter++;
+		}
+		return uniqueName;
+	}
+
+	private async insertImageToCodeBlock(ctx: MarkdownPostProcessorContext, fileName: string, insertAfterIndex: number): Promise<void> {
+		const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
+		if (!file) {
+			console.warn("Could not find file for this code block. (ctx.sourcePath:", ctx.sourcePath, ")");
+			return;
+		}
+		
+		const fileContent = await this.app.vault.read(file);
+		
+		// Find the media-slider code block
+		const codeBlockMatch = fileContent.match(/(```media-slider[\s\S]+?```)/);
+		if (!codeBlockMatch) {
+			console.log("No media-slider code block found.");
+			return;
+		}
+		
+		const codeBlock = codeBlockMatch[1];
+		
+		// Split the code block into lines
+		const lines = codeBlock.split('\n');
+		
+		// Find the content lines (excluding opening and closing ```)
+		const contentLines = lines.slice(1, -1);
+		
+		// Calculate where to insert the new image
+		// If there's YAML front matter, we need to skip it
+		const yamlStartIndex = contentLines.findIndex(line => line.trim() === '---');
+		let contentStartIndex = 0;
+		
+		if (yamlStartIndex !== -1) {
+			// Find the closing YAML delimiter
+			const yamlEndIndex = contentLines.slice(yamlStartIndex + 1).findIndex(line => line.trim() === '---');
+			if (yamlEndIndex !== -1) {
+				contentStartIndex = yamlStartIndex + yamlEndIndex + 2; // +2 for both delimiters
+			}
+		}
+		
+		// Adjust insertAfterIndex to account for YAML front matter
+		const actualInsertIndex = contentStartIndex + insertAfterIndex + 1; // +1 because we insert after the index
+		
+		// Insert the new image at the calculated position
+		contentLines.splice(actualInsertIndex, 0, `![[${fileName}]]`);
+		
+		// Rebuild the code block
+		lines[0] = '```media-slider';
+		for (let i = 0; i < contentLines.length; i++) {
+			lines[i + 1] = contentLines[i];
+		}
+		lines[contentLines.length + 1] = '```';
+		
+		const updatedCodeBlock = lines.join('\n');
+		
+		// Replace the code block in the file content
+		const updatedContent = fileContent.replace(codeBlockMatch[0], updatedCodeBlock);
+		
+		// Save the file
+		await this.app.vault.modify(file, updatedContent);
+	}
+
 	private async appendImageToCodeBlock(ctx: MarkdownPostProcessorContext, fileName: string): Promise<void> {
 		const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
 		if (!file) {
@@ -229,7 +253,7 @@ export default class MediaSliderPlugin extends Plugin {
 		const updatedContent = fileContent.replace(
 			/(```media-slider[\s\S]+?```)/,
 			(match) => {
-				return match.replace(/```$/, `[[${fileName}]]\n\`\`\``);
+				return match.replace(/```$/, `![[${fileName}]]\n\`\`\``);
 			}
 		);
 		if (updatedContent === fileContent) {
@@ -239,11 +263,119 @@ export default class MediaSliderPlugin extends Plugin {
 		await this.app.vault.modify(file, updatedContent);
 	}
 
-	private createMediaSlider(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+	private async getFolderMedia(folderPath: string, settings: any): Promise<string[]> {
+		const folder = this.app.vault.getAbstractFileByPath(folderPath);
+		if (!folder || !("children" in folder)) {
+			console.error("Folder not found or not a folder:", folderPath);
+			return [];
+		}
+
+		// Get all media files in the folder
+		const mediaFiles: string[] = [];
+		
+		// Define default file type filters
+		let fileTypeFilters = [
+			"png", "jpg", "jpeg", "gif", "svg", "webp", "bmp", "avif",
+			"mp4", "webm", "mkv", "mov", "ogv",
+			"mp3", "ogg", "wav", "flac", "m4a",
+			"pdf", "md"
+		];
+		
+		// If filter is specified in settings, use that instead
+		if (settings.fileTypes && Array.isArray(settings.fileTypes)) {
+			fileTypeFilters = settings.fileTypes;
+		}
+		
+		const recursive = settings.recursive !== false; // Recursive by default
+		
+		const collectMediaFiles = (file: any) => {
+			if (file.children) {
+				// If it's a folder, process its children
+				if (file === folder || recursive) {
+					file.children.forEach(collectMediaFiles);
+				}
+			} else if ("extension" in file) {
+				// If it's a file with the specified extensions, add it
+				if (fileTypeFilters.includes(file.extension.toLowerCase())) {
+					mediaFiles.push(file.path);
+				}
+			}
+		};
+		
+		collectMediaFiles(folder);
+		
+		// Sort files by name
+		return mediaFiles.sort();
+	}
+
+	// New method to parse media files and identify compare groups
+	private parseMediaFiles(mediaLines: string[]): {
+		fileEntries: { path: string; caption: string | null; compareGroup: string | null }[];
+		compareGroups: Map<string, { files: {path: string; caption: string | null}[]; processed: boolean }>;
+	} {
+		const fileEntries: { path: string; caption: string | null; compareGroup: string | null }[] = [];
+		
+		// First pass - parse all file entries and identify compare groups
+		for (const line of mediaLines) {
+			let path = "";
+			let caption = null;
+			let compareGroup = null;
+			
+			// Check for the compare syntax with double pipe
+			// The key issue may be with this regex - make it more lenient
+			const compareModeMatch = line.match(/!?\[\[(.*?)(?:\|(.*?))?\s*\|\|\s*([\w\d-]+)\]\]/);
+			
+			if (compareModeMatch) {
+				path = compareModeMatch[1].trim();
+				caption = compareModeMatch[2] ? compareModeMatch[2].trim() : null;
+				compareGroup = compareModeMatch[3].trim();
+				
+				console.log(`Found compare file: ${path} with group ${compareGroup}`);
+				fileEntries.push({ path, caption, compareGroup });
+			} else {
+				// Regular file reference
+				const match = line.match(/!?\[\[(.*?)(?:\|(.*?))?\]\]/);
+				if (match) {
+					path = match[1].trim();
+					caption = match[2] ? match[2].trim() : null;
+					
+					fileEntries.push({ path, caption, compareGroup: null });
+				}
+			}
+		}
+		
+		// Second pass - group files by compare group ID
+		const compareGroups = new Map<string, { files: {path: string; caption: string | null}[]; processed: boolean }>();
+		
+		for (const entry of fileEntries) {
+			if (entry.compareGroup) {
+				// Get the group ID (first part before the dash)
+				const groupId = entry.compareGroup.split('-')[0];
+				
+				// Create the group if it doesn't exist
+				if (!compareGroups.has(groupId)) {
+					compareGroups.set(groupId, { files: [], processed: false });
+				}
+				
+				// Add the file to its group
+				compareGroups.get(groupId)!.files.push({
+					path: entry.path,
+					caption: entry.caption
+				});
+			}
+		}
+		
+		// Log the found compare groups for debugging
+		console.log("Compare groups found:", Array.from(compareGroups.entries()));
+		
+		return { fileEntries, compareGroups };
+	}
+
+	private async createMediaSlider(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		// Attempt to parse YAML front matter from the code block
 		const metadataMatch = source.match(/---\n([\s\S]+?)\n---/);
 		const mediaContent = source.replace(/---\n[\s\S]+?\n---/, "").trim();
-		const mediaFiles = mediaContent.split("\n").map(line => line.trim()).filter(Boolean);
+		const mediaLines = mediaContent.split("\n").map(line => line.trim()).filter(Boolean);
 
 		// Default slider config
 		let settings: any = {
@@ -259,16 +391,35 @@ export default class MediaSliderPlugin extends Plugin {
 			transitionDuration: 0.1,
 			enhancedView: true,
 			interactiveNotes: false,
-
-			// If you want to allow per-slider overrides:
-			enableImageManipulation: false,
-			compression: undefined
+			fileTypes: null, // Filter by file types
+			recursive: false, // Whether to recursively include subfolder files
+			compression: null, // Can be true, false, or a number for quality
+			compareMode: {  // New compare mode settings
+				enabled: this.settings.enableCompareMode,
+				orientation: "vertical",
+				initialPosition: 50,
+				showLabels: false,
+				label1: "",
+				label2: "",
+				swapImages: false
+			}
 		};
 
 		if (metadataMatch) {
 			try {
 				const parsedSettings = parseYaml(metadataMatch[1]);
-				settings = Object.assign(settings, parsedSettings);
+				settings = Object.assign({}, settings, parsedSettings);
+                
+                // Handle nested compare mode settings
+                if (parsedSettings.compareMode) {
+                    settings.compareMode = Object.assign({}, settings.compareMode, parsedSettings.compareMode);
+                    
+                    // Always enable compare mode if explicitly configured in YAML
+                    if (parsedSettings.compareMode && 
+                        parsedSettings.compareMode.enabled !== undefined) {
+                        settings.compareMode.enabled = parsedSettings.compareMode.enabled;
+                    }
+                }
 			} catch (error) {
 				console.error("Failed to parse media-slider metadata:", error);
 			}
@@ -279,12 +430,68 @@ export default class MediaSliderPlugin extends Plugin {
 			sliderId = `slider-${MediaSliderPlugin.sliderCounter++}`;
 		}
 
-		const validFiles = mediaFiles.map(file => {
-			let match = file.match(/!?\[\[(.*?)\]\]/);
-			if (!match) {
-				match = file.match(/!\[\]\((.*?)\)/);
+		// Process media lines to extract file paths and folder paths
+		let mediaFiles: string[] = [];
+		
+		// Collect all media files first
+		for (const line of mediaLines) {
+			// Check if it's a folder reference
+			const folderMatch = line.match(/!?\[\[(.*?\/)\]\]/);
+			if (folderMatch) {
+				const folderPath = folderMatch[1].endsWith('/') 
+					? folderMatch[1].slice(0, -1) 
+					: folderMatch[1];
+					
+				// Get all media files from this folder
+				const folderFiles = await this.getFolderMedia(folderPath, settings);
+				
+				// Add folder files to our list
+				mediaFiles = mediaFiles.concat(folderFiles.map(file => `![[${file}]]`));
+			} else {
+				// Regular file reference
+				mediaFiles.push(line);
 			}
-			return match ? match[1] : "";
+		}
+		
+		// Parse and process the media files to identify compare groups
+		const { fileEntries, compareGroups } = this.parseMediaFiles(mediaFiles);
+		
+		// Generate processed files list for display
+		const processedFiles: string[] = [];
+		const processedGroupIds = new Set<string>();
+		
+		for (const entry of fileEntries) {
+			if (entry.compareGroup) {
+				const groupId = entry.compareGroup.split('-')[0];
+				
+				// Only process each group once
+				if (!processedGroupIds.has(groupId)) {
+					processedGroupIds.add(groupId);
+					processedFiles.push(`__COMPARE_GROUP_${groupId}`);
+				}
+			} else {
+				// Regular file
+				processedFiles.push(entry.caption 
+					? `![[${entry.path}|${entry.caption}]]` 
+					: `![[${entry.path}]]`);
+			}
+		}
+
+	
+		
+		// Process the files for display
+	
+		const validFiles = processedFiles.map(file => {
+		  if (file.startsWith('__COMPARE_GROUP_')) {
+		    return file;
+		  }
+		  const m = file.match(/!?\[\[(.*?)(?:\|(.*?))?\]\]/);
+		  if (!m) return "";
+		  const path    = m[1].trim();
+		  const caption = (m[2] ?? "").trim();
+		  return caption
+		    ? `${path}|${caption}`
+		    : path;
 		}).filter(Boolean);
 
 		if (validFiles.length === 0) {
@@ -292,10 +499,10 @@ export default class MediaSliderPlugin extends Plugin {
 			return;
 		}
 
-		this.notesManager.cleanupNotesForSlider(sliderId, validFiles).catch(console.error);
-		this.cleanupDrawingData(sliderId, validFiles).catch(console.error);
+		await this.notesManager.cleanupNotesForSlider(sliderId, validFiles).catch(console.error);
+		await this.cleanupDrawingData(sliderId, validFiles).catch(console.error);
 
-		this.renderSlider(el, validFiles, settings, sliderId, ctx);
+		this.renderSlider(el, validFiles, settings, sliderId, ctx, compareGroups);
 	}
 
 	private renderSlider(
@@ -303,12 +510,15 @@ export default class MediaSliderPlugin extends Plugin {
 		files: string[],
 		settings: any,
 		sliderId: string,
-		ctx: MarkdownPostProcessorContext
+		ctx: MarkdownPostProcessorContext,
+		compareGroups: Map<string, { files: { path: string; caption: string | null }[]; processed: boolean }> = new Map()
 	) {
 		container.empty();
 
 		let updateDrawingOverlay: ((mediaKey: string) => void) | undefined;
 		const sliderWrapper = container.createDiv("media-slider-wrapper");
+
+		sliderWrapper.tabIndex = 0;
 
 		// Layout
 		if (
@@ -349,6 +559,9 @@ export default class MediaSliderPlugin extends Plugin {
 
 		let currentIndex = 0;
 		let currentDirection: "next" | "prev" = "next";
+		
+		// Track compare mode instances
+		const compareInstances: { [key: string]: CompareMode } = {};
 
 		// Enhanced view (fullscreen, copy link, etc.)
 		if (settings.enhancedView) {
@@ -366,6 +579,10 @@ export default class MediaSliderPlugin extends Plugin {
 			const copyBtn = sliderWrapper.createEl("button", { text: "📋", cls: "copy-btn" });
 			copyBtn.onclick = async () => {
 				const currentEntry = files[currentIndex];
+				
+				// Skip copying for compare groups
+				if (currentEntry.startsWith('__COMPARE_GROUP_')) return;
+				
 				let [fileName] = currentEntry.split("|").map(s => s.trim());
 				const markdownLink = `![[${fileName}]]`;
 				try {
@@ -396,7 +613,9 @@ export default class MediaSliderPlugin extends Plugin {
 				if (notesTextarea) {
 					await this.notesManager.setNote(mediaKey, notesTextarea.value);
 				}
-				notesContainer.classList.remove("visible");
+				if (notesContainer) {
+					notesContainer.classList.remove("visible");
+				}
 			};
 			notesContainer.appendChild(saveNotesBtn);
 
@@ -473,6 +692,16 @@ export default class MediaSliderPlugin extends Plugin {
 		//  Create or update the media display
 		//----------------------------------------------------------------------
 		const updateMediaDisplay = async () => {
+			// Clean up any existing compare instance
+			Object.values(compareInstances).forEach(instance => {
+				instance.destroy();
+			});
+			
+			// Clear compareInstances object
+			Object.keys(compareInstances).forEach(key => {
+				delete compareInstances[key];
+			});
+			
 			// Transition out
 			mediaWrapper.classList.remove(
 				"transition-fade-in", "transition-slide-next-in", "transition-slide-prev-in", "transition-zoom-in",
@@ -526,122 +755,209 @@ export default class MediaSliderPlugin extends Plugin {
 				}
 
 				const currentEntry = files[currentIndex];
-				let [fileName, caption] = currentEntry.split("|").map(s => s.trim());
-				if (!fileName.includes(".")) {
-					const mdFile = this.app.metadataCache.getFirstLinkpathDest(fileName, "");
-					if (mdFile && mdFile.extension === "md") {
-						fileName = mdFile.path;
-					}
-				}
-
-				const filePath = this.getMediaSource(fileName);
-
-				// Use local slider "compression" or fallback to global
-				const quality = (settings.compression !== undefined)
-					? settings.compression
-					: this.settings.compressionQuality;
-
-				if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
-					try {
-						if (/\.gif$/i.test(fileName)) {
-							// For GIFs, avoid compression to preserve animation
-							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
-							img.classList.add("slider-media", "gif-media");
-							this.addZoomPanSupport(img, sliderContainer);
-						}
-						// For SVG files, we don't need compression
-						else if (/\.svg$/i.test(fileName)) {
-							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
-							img.classList.add("slider-media");
-							this.addZoomPanSupport(img, sliderContainer);
-						} else {
-							// For other image formats, use compression if possible
-							const compressedUrl = await compressImage(filePath, 1600, 1200, quality);
-							const img = mediaWrapper.createEl("img", { attr: { src: compressedUrl } });
-							img.classList.add("slider-media");
-							this.addZoomPanSupport(img, sliderContainer);
-						}
-					} catch (err) {
-						// If compression fails, fallback to direct display
-						console.error("Error processing image:", err);
-						const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
-						img.classList.add("slider-media");
-						this.addZoomPanSupport(img, sliderContainer);
-					}
-				} else if (/\.(mp4|webm|mkv|mov|ogv)$/i.test(fileName)) {
-					const video = mediaWrapper.createEl("video", { attr: { src: filePath, controls: "true" } });
-					if (settings.autoplay) video.setAttribute("autoplay", "true");
-					video.classList.add("slider-media");
-
-					if (this.settings.enableVisualizer) {
-						new Visualizer(video, sliderContainer, {
-							color: this.settings.visualizerColor,
-							height: this.settings.visualizerHeight
-						});
-					}
-				} else if (/\.(mp3|ogg|wav|flac|webm|3gp||m4a)$/i.test(fileName)) {
-					const audio = mediaWrapper.createEl("audio", { attr: { src: filePath, controls: "true" } });
-					audio.classList.add("slider-media", "audio-media");
-
-					if (this.settings.enableVisualizer) {
-						new Visualizer(audio, sliderContainer, {
-							color: this.settings.visualizerColor,
-							height: this.settings.visualizerHeight
-						});
-					}
-				} else if (/\.(pdf)$/i.test(fileName)) {
-					// Create a container with CSS classes instead of inline styles
-					const pdfContainer = mediaWrapper.createEl("div", { cls: "pdf-container" });
+				console.log("Current entry:", currentEntry);
+				
+				// Handle compare groups
+				if (currentEntry && currentEntry.startsWith('__COMPARE_GROUP_')) {
+					const groupId = currentEntry.slice('__COMPARE_GROUP_'.length);
+					console.log("Rendering compare group:", groupId);
+					console.log("Available groups:", Array.from(compareGroups.keys()));
 					
-					// Create the iframe with proper attributes and CSS classes
-					const iframe = pdfContainer.createEl("iframe", {
-						attr: { 
-							src: filePath, 
-							width: "100%", 
-							height: "100%",
-							frameborder: "0",
-							allowfullscreen: "true"
-						}
-					});
+					const group = compareGroups.get(groupId);
+					console.log("Group data:", group);
 					
-					iframe.classList.add("slider-media", "pdf-media");
-					
-					// The media-wrapper CSS class will be automatically targeted by the CSS selector
-				} else if (/\.(md)$/i.test(fileName)) {
-					const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-					if (abstractFile && "extension" in abstractFile) {
-						const content = await this.getMarkdownContent(fileName);
-						mediaWrapper.empty();
-						await MarkdownRenderer.render(this.app, content, mediaWrapper, abstractFile.path, this);
-					}
-				} else if (this.isYouTubeURL(fileName)) {
-					const embedUrl = this.getYouTubeEmbedURL(fileName);
-					const iframe = mediaWrapper.createEl("iframe", {
-						attr: {
-							src: embedUrl,
-							frameborder: "0",
-							allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
-							allowfullscreen: "true"
-						}
-					});
-					iframe.style.width = sliderContainer.clientWidth + "px";
-					iframe.style.height = sliderContainer.clientHeight + "px";
-					iframe.classList.add("slider-media");
-				} else {
-					const link = mediaWrapper.createEl("a", {
-						text: "Open File",
-						attr: { href: filePath, target: "_blank" }
-					});
-					link.classList.add("slider-media");
-				}
+					if (group && group.files.length >= 2) {
+						// We have a valid comparison group with at least 2 files
+						const file1 = group.files[0];
+						const file2 = group.files[1];
+						
+						console.log("Compare files:", file1.path, file2.path);
+						
+						try {
+							// Get image sources
+							const img1Path = this.getMediaSource(file1.path);
+							const img2Path = this.getMediaSource(file2.path);
+							
+							console.log("Image paths:", img1Path, img2Path);
+							
+							// Create compare mode options
+							const compareOptions: CompareOptions = {
+								orientation: settings.compareMode?.orientation || "vertical",
+								initialPosition: settings.compareMode?.initialPosition || 50,
+								showLabels: settings.compareMode?.showLabels || false,
+								label1: settings.compareMode?.label1 || "Before",
+								label2: settings.compareMode?.label2 || "After",
+								swapImages: settings.compareMode?.swapImages || false,
+								enabled: true
+							};
+							
+							// Create compare instance
+							const compareInstance = new CompareMode(
+								mediaWrapper,
+								img1Path,
+								img2Path,
+								file1.caption,
+								file2.caption,
+								compareOptions
+							);
+							
+							// Render the comparison
+							compareInstance.render();
+							
 
-				if (caption) {
-					if (settings.captionMode === "overlay") {
-						const capEl = mediaWrapper.createEl("div", { text: caption });
-						capEl.classList.add("slider-caption-overlay");
+							
+							// Store for cleanup
+							compareInstances[groupId] = compareInstance;
+						} catch (error) {
+							console.error("Error rendering comparison:", error);
+							mediaWrapper.createEl("div", { text: `Error rendering comparison: ${error.message || "Unknown error"}` });
+						}
 					} else {
-						const capEl = captionContainer.createEl("div", { text: caption });
-						capEl.classList.add("slider-caption");
+						// Show error message
+						const errorMessage = group 
+							? `Not enough images in group ${groupId} (found ${group.files?.length || 0}, need at least 2)` 
+							: `Group ${groupId} not found`;
+						
+						console.error(errorMessage);
+						mediaWrapper.createEl("div", { text: errorMessage });
+					}
+				} else {
+					// Regular file display
+					let [fileName, caption] = currentEntry.split("|").map(s => s.trim());
+					if (!fileName.includes(".")) {
+						const mdFile = this.app.metadataCache.getFirstLinkpathDest(fileName, "");
+						if (mdFile && mdFile.extension === "md") {
+							fileName = mdFile.path;
+						}
+					}
+
+					const filePath = this.getMediaSource(fileName);
+
+					// Determine if compression should be used
+					let useCompression = this.settings.enableCompression;
+					
+					// Check if slider-specific setting is provided
+					if (settings.compression !== null && settings.compression !== undefined) {
+						// Handle "off" or false value
+						if (settings.compression === "off" || settings.compression === false) {
+							useCompression = false;
+						} else {
+							useCompression = true;
+						}
+					}
+
+					// Quality: Use local slider "compression" quality or fallback to global
+					const quality = typeof settings.compression === 'number'
+						? settings.compression
+						: this.settings.compressionQuality;
+
+					if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
+						try {
+							if (/\.gif$/i.test(fileName)) {
+								// For GIFs, avoid compression to preserve animation
+								const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+								img.classList.add("slider-media", "gif-media");
+								this.addZoomPanSupport(img, sliderContainer);
+							}
+							// For SVG files, we don't need compression
+							else if (/\.svg$/i.test(fileName)) {
+								const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+								img.classList.add("slider-media");
+								this.addZoomPanSupport(img, sliderContainer);
+							} else if (!useCompression) {
+								// Skip compression if disabled
+								const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+								img.classList.add("slider-media");
+								this.addZoomPanSupport(img, sliderContainer);
+							} else {
+								// For other image formats, use compression if possible
+								const compressedUrl = await compressImage(filePath, 1600, 1200, quality);
+								const img = mediaWrapper.createEl("img", { attr: { src: compressedUrl } });
+								img.classList.add("slider-media");
+								this.addZoomPanSupport(img, sliderContainer);
+							}
+						} catch (err) {
+							// If compression fails, fallback to direct display
+							console.error("Error processing image:", err);
+							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+							img.classList.add("slider-media");
+							this.addZoomPanSupport(img, sliderContainer);
+						}
+					} else if (/\.(mp4|webm|mkv|mov|ogv)$/i.test(fileName)) {
+						const video = mediaWrapper.createEl("video", { attr: { src: filePath, controls: "true" } });
+						if (settings.autoplay) video.setAttribute("autoplay", "true");
+						video.classList.add("slider-media");
+
+						if (this.settings.enableVisualizer) {
+							new Visualizer(video, sliderContainer, {
+								color: this.settings.visualizerColor,
+								height: this.settings.visualizerHeight
+							});
+						}
+					} else if (/\.(mp3|ogg|wav|flac|webm|3gp||m4a)$/i.test(fileName)) {
+						const audio = mediaWrapper.createEl("audio", { attr: { src: filePath, controls: "true" } });
+						audio.classList.add("slider-media", "audio-media");
+
+						if (this.settings.enableVisualizer) {
+							new Visualizer(audio, sliderContainer, {
+								color: this.settings.visualizerColor,
+								height: this.settings.visualizerHeight
+							});
+						}
+					} else if (/\.(pdf)$/i.test(fileName)) {
+						// Create a container with CSS classes instead of inline styles
+						const pdfContainer = mediaWrapper.createEl("div", { cls: "pdf-container" });
+						
+						// Create the iframe with proper attributes and CSS classes
+						const iframe = pdfContainer.createEl("iframe", {
+							attr: { 
+								src: filePath, 
+								width: "100%", 
+								height: "100%",
+								frameborder: "0",
+								allowfullscreen: "true"
+							}
+						});
+						
+						iframe.classList.add("slider-media", "pdf-media");
+						
+						// The media-wrapper CSS class will be automatically targeted by the CSS selector
+					} else if (/\.(md)$/i.test(fileName)) {
+						const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
+						if (abstractFile && "extension" in abstractFile) {
+							const content = await this.getMarkdownContent(fileName);
+							mediaWrapper.empty();
+							await MarkdownRenderer.render(this.app, content, mediaWrapper, abstractFile.path, this);
+						}
+					} else if (this.isYouTubeURL(fileName)) {
+						const embedUrl = this.getYouTubeEmbedURL(fileName);
+						const iframe = mediaWrapper.createEl("iframe", {
+							attr: {
+								src: embedUrl,
+								frameborder: "0",
+								allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+								allowfullscreen: "true",
+								width: "100%",
+								height: "100%"
+							}
+						});
+						iframe.classList.add("slider-media");
+					} else {
+						const link = mediaWrapper.createEl("a", {
+							text: "Open File",
+							attr: { href: filePath, target: "_blank" }
+						});
+						link.classList.add("slider-media");
+					}
+
+					if (caption) {
+						if (settings.captionMode === "overlay") {
+							const capEl = mediaWrapper.createEl("div", { text: caption });
+							capEl.classList.add("slider-caption-overlay");
+						} else {
+							const capEl = captionContainer.createEl("div", { text: caption });
+							capEl.classList.add("slider-caption");
+						}
 					}
 				}
 
@@ -810,36 +1126,135 @@ export default class MediaSliderPlugin extends Plugin {
 			if (Math.abs(diff) > 50) diff > 0 ? goNext() : goPrev();
 		});
 
-		throttledUpdate();
-
+		// Create thumbnails
 		if (thumbnailContainer) {
 			thumbnailContainer.empty();
 			files.forEach((entry, index) => {
-				let [fileName] = entry.split("|").map(s => s.trim());
-				let thumbEl: HTMLElement;
-
-				if (this.isYouTubeURL(fileName)) {
-					const thumbUrl = this.getYouTubeThumbnail(fileName);
-					thumbEl = thumbnailContainer.createEl("img", { attr: { src: thumbUrl }, cls: "thumbnail" });
-				} else if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
-					thumbEl = thumbnailContainer.createEl("img", {
-						attr: { src: this.getMediaSource(fileName) },
-						cls: "thumbnail"
-					});
+				// Special handling for compare groups
+				if (entry.startsWith('__COMPARE_GROUP_')) {
+					const groupId = entry.replace('__COMPARE_GROUP_', '');
+					const group = compareGroups.get(groupId);
+					
+					if (group && group.files.length > 0) {
+						// Create a special thumbnail for compare groups
+						const thumbEl = thumbnailContainer.createEl("div", { cls: "thumbnail compare-thumbnail" });
+						
+						// Add class based on orientation
+						thumbEl.classList.add(settings.compareMode.orientation === "horizontal" ? 
+							"compare-horizontal" : "compare-vertical");
+						
+						// Only proceed if we have at least 2 files
+						if (group.files.length >= 2) {
+							const file1 = group.files[0];
+							const file2 = group.files[1];
+							
+							try {
+								const img1Path = this.getMediaSource(file1.path);
+								const img2Path = this.getMediaSource(file2.path);
+								
+								// Check if we're dealing with images
+								const isImage1 = /\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(file1.path);
+								const isImage2 = /\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(file2.path);
+								
+								if (isImage1 && isImage2) {
+									// Create container for the split thumbnail
+									const thumbContainer = thumbEl.createEl("div", { cls: "compare-thumb-container" });
+									
+									// Left/top image
+									const leftImg = thumbContainer.createEl("img", { 
+										attr: { src: img1Path },
+										cls: "compare-thumb-left"
+									});
+									
+									// Right/bottom image
+									const rightImg = thumbContainer.createEl("img", { 
+										attr: { src: img2Path },
+										cls: "compare-thumb-right"
+									});
+									
+									// Add divider line
+									const divider = thumbContainer.createEl("div", { cls: "compare-thumb-divider" });
+									
+									// Add compare icon
+									const compareIcon = thumbEl.createEl("div", { 
+										text: "⟷",
+										cls: "compare-thumb-icon"
+									});
+								} else {
+									// For non-image files
+									thumbEl.textContent = "COMP";
+									thumbEl.classList.add("thumbnail-placeholder");
+								}
+							} catch (error) {
+								console.error("Error creating compare thumbnail:", error);
+								thumbEl.textContent = "ERR";
+								thumbEl.classList.add("thumbnail-placeholder");
+							}
+						} else {
+							// Not enough files for comparison
+							thumbEl.textContent = "CMP";
+							thumbEl.classList.add("thumbnail-placeholder");
+						}
+						
+						// Apply thumbnail orientation class
+						if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
+							thumbEl.classList.add("vertical-thumb");
+						}
+						
+						// Add click handler
+						thumbEl.onclick = () => {
+							currentIndex = index;
+							throttledUpdate();
+						};
+						
+						thumbnailEls.push(thumbEl);
+					}
 				} else {
-					const ext = fileName.split('.').pop()?.toUpperCase() || "FILE";
-					thumbEl = thumbnailContainer.createEl("div", { text: ext });
-					thumbEl.classList.add("thumbnail-placeholder");
+					// Regular file thumbnail
+					let [fileName] = entry.split("|").map(s => s.trim());
+					let thumbEl: HTMLElement;
+					
+					if (this.isYouTubeURL(fileName)) {
+						const thumbUrl = this.getYouTubeThumbnail(fileName);
+						thumbEl = thumbnailContainer.createEl("img", { attr: { src: thumbUrl }, cls: "thumbnail" });
+					} else if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
+						thumbEl = thumbnailContainer.createEl("img", {
+							attr: { src: this.getMediaSource(fileName) },
+							cls: "thumbnail"
+						});
+					} else {
+						const ext = fileName.split('.').pop()?.toUpperCase() || "FILE";
+						thumbEl = thumbnailContainer.createEl("div", { text: ext });
+						thumbEl.classList.add("thumbnail-placeholder");
+					}
+					
+					if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
+						thumbEl.classList.add("vertical-thumb");
+					}
+					
+					// Make thumbnails focusable
+					thumbEl.tabIndex = 0;
+					
+					thumbEl.onclick = () => {
+						currentIndex = index;
+						throttledUpdate();
+					};
+					
+					thumbEl.addEventListener("keydown", (evt: KeyboardEvent) => {
+						// Add keyboard shortcuts for thumbnails
+						if (evt.key === "Enter" || evt.key === " ") {
+							currentIndex = index;
+							throttledUpdate();
+							evt.preventDefault();
+						}
+					});
+					
+					thumbnailEls.push(thumbEl);
 				}
-				if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
-					thumbEl.classList.add("vertical-thumb");
-				}
-				thumbEl.onclick = () => {
-					currentIndex = index;
-					throttledUpdate();
-				};
-				thumbnailEls.push(thumbEl);
 			});
+			
+			// Make the thumbnail container focusable too
+			thumbnailContainer.tabIndex = 0;
 		}
 
 		if (settings.slideshowSpeed > 0) {
@@ -851,68 +1266,25 @@ export default class MediaSliderPlugin extends Plugin {
 			sliderWrapper.focus();
 		});
 
-		// Paste images into the slider
-		sliderWrapper.addEventListener("paste", async (evt: ClipboardEvent) => {
-			const clipboardData = evt.clipboardData;
-			if (!clipboardData) return;
-			for (const item of clipboardData.items) {
-				if (item.type.indexOf("image") !== -1) {
-					const file = item.getAsFile();
-					if (!file) continue;
-					const reader = new FileReader();
-					reader.onload = async (e) => {
-						const dataUrl = e.target?.result as string;
-						const response = await fetch(dataUrl);
-						const blob = await response.blob();
-						const arrayBuffer = await blob.arrayBuffer();
-						const uint8Array = new Uint8Array(arrayBuffer);
-
-						let folderPath: string;
-						if (this.settings.attachmentLocation === "default") {
-							folderPath = this.app.vault.getConfig("attachmentFolderPath") || "";
-						} else if (this.settings.attachmentLocation === "custom") {
-							folderPath = this.settings.customAttachmentFolder;
-						} else {
-							const fileObj = this.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
-							folderPath = fileObj ? fileObj.parent.path : "";
-						}
-						if (folderPath && !this.app.vault.getAbstractFileByPath(folderPath)) {
-							try {
-								await this.app.vault.createFolder(folderPath);
-							} catch (error) {
-								console.error("Error creating folder:", error);
-							}
-						}
-						const newFileName = folderPath
-							? `${folderPath}/pasteimage-${Date.now()}.png`
-							: `pasteimage-${Date.now()}.png`;
-
-						try {
-							await this.app.vault.createBinary(newFileName, uint8Array);
-						} catch (error) {
-							console.error("Error creating pasted image file:", error);
-						}
-
-						files.push(`[[${newFileName}]]`);
-						throttledUpdate();
-						await this.appendImageToCodeBlock(ctx, newFileName);
-					};
-					reader.readAsDataURL(file);
-					break;
-				}
-			}
+		// Clean up event listeners when the component is removed
+		this.register(() => {
+			// Clean up compare instances
+			Object.values(compareInstances).forEach(instance => {
+				instance.destroy();
+			});
 		});
 
+		// SHOW THE FIRST SLIDE
+		throttledUpdate();
+
+		// allow this div to receive paste events
+		sliderWrapper.tabIndex = 0;
+
 		container.appendChild(sliderWrapper);
+
+
 	}
 
-	// Zoom and Pan Support
-
-	/**
-	 * Adds zoom and pan functionality to an image element
-	 * @param img - The image element to add zoom/pan support to
-	 * @param container - The container element that holds the image
-	 */
 	private addZoomPanSupport(img: HTMLImageElement, container: HTMLElement): void {
 	    // State variables for zoom and pan
 	    let scale = 1;
@@ -1184,7 +1556,6 @@ export default class MediaSliderPlugin extends Plugin {
 	    // Initial setup
 	    applyTransform();
 	}
-
 }
 
 class MediaSliderSettingTab extends PluginSettingTab {
@@ -1198,32 +1569,6 @@ class MediaSliderSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName("Pasted attachment location")
-			.setDesc("Where to save pasted images.")
-			.addDropdown(dropdown => {
-				dropdown.addOption("default", "Default");
-				dropdown.addOption("custom", "Custom folder");
-				dropdown.addOption("same", "Same folder as current note");
-				dropdown.setValue(this.plugin.settings.attachmentLocation);
-				dropdown.onChange(async (value: "default" | "custom" | "same") => {
-					this.plugin.settings.attachmentLocation = value;
-					await this.plugin.saveSettings();
-				});
-			});
-
-		new Setting(containerEl)
-			.setName("Custom attachment folder")
-			.setDesc("Folder to save pasted images when using the custom option.")
-			.addText(text => {
-				text.setPlaceholder("SliderAttachment");
-				text.setValue(this.plugin.settings.customAttachmentFolder);
-				text.onChange(async (value) => {
-					this.plugin.settings.customAttachmentFolder = value;
-					await this.plugin.saveSettings();
-				});
-			});
 
 		new Setting(containerEl)
 			.setName("Enable drawing annotation")
@@ -1273,9 +1618,20 @@ class MediaSliderSettingTab extends PluginSettingTab {
 				})
 			);
 
-		
+		// Enable/Disable Compression
+		new Setting(containerEl)
+			.setName("Enable image compression")
+			.setDesc("Toggle to enable/disable image compression globally. Can be overridden per slider in YAML.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableCompression)
+				.onChange(async (value) => {
+					this.plugin.settings.enableCompression = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSliders();
+				})
+			);
 
-		// Compression
+		// Compression quality
 		new Setting(containerEl)
 			.setName("Compression quality")
 			.setDesc("Set the image compression quality (0 to 1, e.g., 0.7 for 70% quality).")
@@ -1293,5 +1649,18 @@ class MediaSliderSettingTab extends PluginSettingTab {
 					}
 				})
 			);
+            
+        // New setting for enabling compare mode
+        new Setting(containerEl)
+            .setName("Enable compare mode")
+            .setDesc("Toggle to enable image comparison feature globally. Can be configured per slider in YAML.")
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableCompareMode)
+                .onChange(async (value) => {
+                    this.plugin.settings.enableCompareMode = value;
+                    await this.plugin.saveSettings();
+                    this.plugin.refreshSliders();
+                })
+            );
 	}
 }

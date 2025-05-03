@@ -271,7 +271,8 @@ Happy sliding!
 - [x] Render YouTube Videos as media-slider element
 - [x] Customization of compression ratio
 - [x] Support Zoom and Pan
-- [ ] Comparing two images
+- [x] CompareMode - Comparing after and before images
+- [x] Folder Support in Codeblock - Linking all images in a folder to the slider
 - [ ] Writing Caption directly from UI
 
 

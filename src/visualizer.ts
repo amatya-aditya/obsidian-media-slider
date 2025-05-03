@@ -5,6 +5,9 @@ export interface VisualizerOptions {
 	gradientType?: "blue-red" | "rainbow" | "custom";
 	/** If using a custom gradient, supply an array of CSS color strings */
 	customColors?: string[];
+
+	color?: string; // Ensure the color property is defined
+	
   }
   
   export class Visualizer {
