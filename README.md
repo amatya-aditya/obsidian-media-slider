@@ -37,6 +37,7 @@
 📌 Key Features:
 
 🎥 Multiple Media Support: Images, videos (including YouTube), audio files, PDFs, Markdown files
+💕 compareMode: Compare Before and After Images
 🔍 Zoom & Pan: Explore media closely with built-in zoom and pan functionality.
 🎬 Transition Effects: Fade, slide, zoom, flip, rotate, blur, squeeze, and more.
 🖼️ Thumbnail Carousel: Quickly navigate slides with customizable thumbnail positioning.
@@ -53,7 +54,7 @@
 
 Happy sliding! 🚀
 ```
-## Installation
+# Installation
 
 The plugin is available through Obsidian as a community plugin.
 
@@ -64,120 +65,195 @@ The plugin is available through Obsidian as a community plugin.
   3. Copy the files from step 1 into the new folder.
   4.  Enable the plugin in the Obsidian settings under the "Community plugins" section. You might have to restart Obsidian to see the plugin.
 
+# Usuage
 
-## Creating a Media Slider
-
-To create a slider in your note, wrap your media list in a code block tagged with media-slider. For example:
+## 📸 Basic Image Slider
+```media-slider
+![[image1.png]]
+![[image2.png]]
+![[image3.png]]
 ```
+
+## 🎥 Mixed Media Support
+
+```markdown
+```media-slider
+![[image1.png]]
+![[video1.mp4]]
+![[audio1.mp3]]
+![](https://…/zoom-pan.gif)
+```
+
+Supports images, videos, audio, and external URLs.
+
+## 🏷️ Captions
+
+```markdown
+```media-slider
+![[image1.png|A beautiful sunrise]]
+![[image2.png|A calm lake]]
+```
+
+Add captions to your images using the `|caption` syntax.
+
+## 🆚 Compare Mode (Simple)
+
+```markdown
 ```media-slider
 ---
-# A unique ID (string) to keep this slider’s state separate from others.
-sliderId: my-slider
+compareMode: true
+---
+![[before.png||1-1]]
+![[after.png||1-2]]
+```
+Compare two images side by side.
 
-# Show a thumbnail “filmstrip” alongside the main slider?
-# true  → thumbnails visible  
-# false → thumbnails hidden
-carouselShowThumbnails: true
+---
 
-# Where to place the thumbnail strip:
-# top, bottom, left, or right
-thumbnailPosition: bottom
+## 🆚 Compare Mode (Custom Options)
 
-# How to render captions (if you append “|Your caption” to a file link):
-# none    → no captions  
-# overlay → text over the image  
-# below   → text beneath the image
-captionMode: overlay
+```markdown
+```media-slider
+---
+compareMode: true
+orientation: "horizontal"
+initialPosition: 50
+showLabels: true
+label1: "Before"
+label2: "After"
+---
+![[before.png||1-1]]
+![[after.png||1-2]]
+![[before2.png||2-1]]
+![[after2.png||2-2]]
+```
+Customize compare mode orientation, labels, and divider position.
 
-# Automatically cycle slides?
-autoplay: false
 
-# Time between slides (milliseconds) when autoplay=true
-slideshowSpeed: 0
+## 📂 Folder Support
 
-# E.g. "100%", "800px", "50vw" — controls the slider’s container width
-width: 100%
-
-# E.g. "300px", "50vh" — fixes the container’s height
-height: 300px
-
-# Transition between slides:
-# fade, slide, zoom, none
-transitionEffect: fade
-
-# How long the transition takes (ms)
-transitionDuration: 500
-
-# true → enable right-click & drag to pan/zoom on images  
-# false → standard <img> behavior
-enhancedView: true
-
-# true → show your “interactive notes” overlay on each slide
-interactiveNotes: true
-
-# JPEG/WebP compression (0–1) when inserting/pasting images  
-# 0 = max compression, 1 = original quality
-compression: 0.8
-
-# Array of file extensions to include in your vault folder scan
+```markdown
+```media-slider
+---
 fileTypes:
   - "jpg"
   - "png"
   - "mp4"
 
-# true → recurse into subfolders when you give a folder path  
-# false → only scan that exact folder
-recursive: true
+recursive: true 
+# false → scan exact folder 
+# true → scans subfolders as well
+---
+[[folder/subfolder/]]
+```
+Automatically include all supported media from a folder.
 
 
-compareMode:
-  # master toggle
-  enabled: true
+## 🖼️ Thumbnail Carousel
 
-  # orientation of the divider:
-  # vertical   → left/right panes  
-  # horizontal → top/bottom panes
-  orientation: "vertical"
+```markdown
+```media-slider
+---
+carouselShowThumbnails: true
+thumbnailPosition: bottom #right,left, top
+---
+![[image1.png]]
+![[image2.png]]
+![[image3.png]]
+```
+Enable and position the thumbnail carousel.
 
-  # initial divider position (percentage 0–100)
-  initialPosition: 50
 
-  # show “Before” / “After” labels?
-  showLabels: true
+## ✨ Transition Effects
 
-  # label text for the first pane
-  label1: "Before"
+```markdown
+```media-slider
+---
+transitionEffect: slide
+transitionDuration: 500
+---
+![[image1.png]]
+![[image2.png]]
+```
+Choose from fade, slide, zoom, flip, etc.
 
-  # label text for the second pane
-  label2: "After"
+
+## 🔍 Zoom & Pan
+
+```markdown
+```media-slider
+---
+enhancedView: true
+---
+![[image1.png]]
+```
+Enable zoom and pan controls for images.
 
 ---
 
+## 📝 Interactive Notes
+
+```markdown
+```media-slider
+---
+interactiveNotes: true
+---
 ![[image1.png]]
-![[video1.mp4]]         # mp4 slides supported
-![[audio1.mp3]]         # audio will appear as a media control
-![](https://…/zoom-pan.gif)  # external URLs work too
+![[image2.png]]
+```
+Add and save notes for each slide.
 
-![[some.pdf]]           # PDF pages will be rendered as images
 
-[[folder/subfolder/]]   # scan an entire folder of supported fileTypes
+## ✏️ Drawing Annotations
 
-# Compare-mode grouping: use the same group ID (e.g. “1”) on two lines:
+Enable in plugin settings. When enabled, a drawing button appears on images for annotation.
+
+---
+
+## 🛠️ Full YAML Example
+
+For advanced users, you can combine multiple options:
+
+```markdown
+```media-slider
+---
+sliderId: my-slider
+carouselShowThumbnails: true
+thumbnailPosition: bottom
+captionMode: overlay
+autoplay: false
+slideshowSpeed: 0
+width: 100%
+height: 300px
+transitionEffect: fade
+transitionDuration: 500
+enhancedView: true
+interactiveNotes: true
+compression: 0.8
+fileTypes:
+  - "jpg"
+  - "png"
+  - "mp4"
+recursive: true
+compareMode: true
+  orientation: "vertical"
+  initialPosition: 50
+  showLabels: true
+  label1: "Before"
+  label2: "After"
+---
+![[image1.png]]
+![[video1.mp4]]
+![[audio1.mp3]]
 ![[compare1.png||1-1]]
 ![[compare2.png||1-2]]
-![[image3.png]]
-![[compare4.png||2-1]]
-![[compare5.png||2-2]]
-
-````
-
-- **YAML Metadata:**  
-  The section between the `---` lines is used to configure slider behavior (see next section).
-
-- **Media Files:**  
-  Each media file is listed on a new line using Obsidian’s link syntax. You can include images, videos, audio files, PDFs, or Markdown files.
+```
 
 ---
+
+**Tip:**  
+For each feature, you can combine options as needed. See the full YAML example for how to mix and match.
+
 
 ## YAML Metadata Options
 

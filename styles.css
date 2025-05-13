@@ -28,7 +28,6 @@
 	align-items: center;
 	overflow: hidden;
 	background: transparent;
-	box-shadow: 0 0px 4px 1px rgba(0, 0, 0, 0.2);
 	transition: all var(--transition-duration, 500ms) ease-in-out;
 	width: var(--slider-width, 100%);
 	height: var(--slider-height, 360px);
@@ -152,13 +151,14 @@ img.slider-media {
 	height: 70px;
 	object-fit: cover;
 	cursor: pointer;
-	border: 2px solid transparent;
+	border: 3px solid transparent;
 	border-radius: 5px;
 	transition: border-color 0.1s;
 }
 
 .thumbnail:hover {
 	border-color: blue;
+	border-radius: 8px;
 }
 
 /* Increased size for vertical thumbnails */
@@ -171,7 +171,8 @@ img.slider-media {
 
 /* Active thumbnail style */
 .active-thumbnail {
-	border: 2px solid #FF4081 !important;
+	border: 3px solid #FF4081 !important;
+	border-radius: 8px;
 }
 
 /* Placeholder for non-image thumbnails */

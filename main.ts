@@ -410,14 +410,23 @@ export default class MediaSliderPlugin extends Plugin {
 				const parsedSettings = parseYaml(metadataMatch[1]);
 				settings = Object.assign({}, settings, parsedSettings);
                 
-                // Handle nested compare mode settings
-                if (parsedSettings.compareMode) {
-                    settings.compareMode = Object.assign({}, settings.compareMode, parsedSettings.compareMode);
-                    
-                    // Always enable compare mode if explicitly configured in YAML
-                    if (parsedSettings.compareMode && 
-                        parsedSettings.compareMode.enabled !== undefined) {
-                        settings.compareMode.enabled = parsedSettings.compareMode.enabled;
+                // Handle compare mode settings - support both simple boolean and nested object
+                if (parsedSettings.compareMode !== undefined) {
+                    if (typeof parsedSettings.compareMode === 'boolean') {
+                        // Simple boolean format: merge defaults, but override enabled
+                        // Also merge in any other compareMode-related keys at the top level
+                        const compareModeDefaults = Object.assign({}, settings.compareMode, { enabled: parsedSettings.compareMode });
+                        // List of valid compareMode keys
+                        const compareModeKeys = ['orientation', 'initialPosition', 'showLabels', 'label1', 'label2', 'swapImages'];
+                        for (const key of compareModeKeys) {
+                            if (parsedSettings[key] !== undefined) {
+                                compareModeDefaults[key] = parsedSettings[key];
+                            }
+                        }
+                        settings.compareMode = compareModeDefaults;
+                    } else if (typeof parsedSettings.compareMode === 'object') {
+                        // Nested object format
+                        settings.compareMode = Object.assign({}, settings.compareMode, parsedSettings.compareMode);
                     }
                 }
 			} catch (error) {
@@ -463,11 +472,22 @@ export default class MediaSliderPlugin extends Plugin {
 		for (const entry of fileEntries) {
 			if (entry.compareGroup) {
 				const groupId = entry.compareGroup.split('-')[0];
-				
-				// Only process each group once
 				if (!processedGroupIds.has(groupId)) {
 					processedGroupIds.add(groupId);
-					processedFiles.push(`__COMPARE_GROUP_${groupId}`);
+					if (settings.compareMode && settings.compareMode.enabled) {
+						// Compare mode enabled: add as compare group
+						processedFiles.push(`__COMPARE_GROUP_${groupId}`);
+					} else {
+						// Compare mode disabled: add both images as individual slides
+						const group = compareGroups.get(groupId);
+						if (group && group.files.length >= 2) {
+							for (const file of group.files) {
+								processedFiles.push(file.caption 
+									? `![[${file.path}|${file.caption}]]`
+									: `![[${file.path}]]`);
+							}
+						}
+					}
 				}
 			} else {
 				// Regular file
@@ -780,34 +800,66 @@ export default class MediaSliderPlugin extends Plugin {
 							
 							console.log("Image paths:", img1Path, img2Path);
 							
-							// Create compare mode options
-							const compareOptions: CompareOptions = {
-								orientation: settings.compareMode?.orientation || "vertical",
-								initialPosition: settings.compareMode?.initialPosition || 50,
-								showLabels: settings.compareMode?.showLabels || false,
-								label1: settings.compareMode?.label1 || "Before",
-								label2: settings.compareMode?.label2 || "After",
-								swapImages: settings.compareMode?.swapImages || false,
-								enabled: true
-							};
-							
-							// Create compare instance
-							const compareInstance = new CompareMode(
-								mediaWrapper,
-								img1Path,
-								img2Path,
-								file1.caption,
-								file2.caption,
-								compareOptions
-							);
-							
-							// Render the comparison
-							compareInstance.render();
-							
+							// Check if compare mode is enabled
+							if (settings.compareMode?.enabled) {
+								// Create compare mode options
+								const compareOptions: CompareOptions = {
+									orientation: settings.compareMode?.orientation || "vertical",
+									initialPosition: settings.compareMode?.initialPosition || 50,
+									showLabels: settings.compareMode?.showLabels || false,
+									label1: settings.compareMode?.label1 || "Before",
+									label2: settings.compareMode?.label2 || "After",
+									swapImages: settings.compareMode?.swapImages || false,
+									enabled: true
+								};
+								
+								// Create compare instance
+								const compareInstance = new CompareMode(
+									mediaWrapper,
+									img1Path,
+									img2Path,
+									file1.caption,
+									file2.caption,
+									compareOptions
+								);
+								
+								// Render the comparison
+								compareInstance.render();
+								
+								// Store for cleanup
+								compareInstances[groupId] = compareInstance;
+							} else {
+								// If compare mode is disabled, show both images in regular slider format
+								// First image
+								const img1 = mediaWrapper.createEl("img", { attr: { src: img1Path } });
+								img1.classList.add("slider-media");
+								this.addZoomPanSupport(img1, sliderContainer);
+								
+								if (file1.caption) {
+									if (settings.captionMode === "overlay") {
+										const capEl = mediaWrapper.createEl("div", { text: file1.caption });
+										capEl.classList.add("slider-caption-overlay");
+									} else {
+										const capEl = captionContainer.createEl("div", { text: file1.caption });
+										capEl.classList.add("slider-caption");
+									}
+								}
 
-							
-							// Store for cleanup
-							compareInstances[groupId] = compareInstance;
+								// Second image
+								const img2 = mediaWrapper.createEl("img", { attr: { src: img2Path } });
+								img2.classList.add("slider-media");
+								this.addZoomPanSupport(img2, sliderContainer);
+								
+								if (file2.caption) {
+									if (settings.captionMode === "overlay") {
+										const capEl = mediaWrapper.createEl("div", { text: file2.caption });
+										capEl.classList.add("slider-caption-overlay");
+									} else {
+										const capEl = captionContainer.createEl("div", { text: file2.caption });
+										capEl.classList.add("slider-caption");
+									}
+								}
+							}
 						} catch (error) {
 							console.error("Error rendering comparison:", error);
 							mediaWrapper.createEl("div", { text: `Error rendering comparison: ${error.message || "Unknown error"}` });
