@@ -33,6 +33,12 @@
   </a>
 </p>
 
+<h2 align="center">CompareMode</h2>
+
+<p align="center">
+  <img  src="https://github.com/amatya-aditya/obsidian-media-slider/blob/master/assets/compareMode.gif">
+</p>
+
 ```
 📌 Key Features:
 

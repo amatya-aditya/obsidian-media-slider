@@ -229,69 +229,94 @@ img.slider-media {
 }
 
 .drawing-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	background-color: rgba(0, 0, 0, 0.5);
+	border-radius: 4px;
+	padding: 4px;
+	z-index: 20;
 	position: absolute;
 	top: 5px;
 	left: 50%;
 	transform: translateX(-50%);
-	background-color: rgba(0, 0, 0, 0.5);
-	border-radius: 4px;
-	padding: 4px;
-	display: flex;
-	gap: 4px;
-	z-index: 20;
 }
 
-.drawing-btn {
-	font-size: 14px;
-	background: rgba(0, 0, 0, 0.5);
+.drawing-btn,
+.drawing-dropdown-summary,
+.geom-summary-btn {
+	width: 28px;
+	height: 28px;
+	min-width: 28px;
+	min-height: 28px;
+	max-width: 28px;
+	max-height: 28px;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 18px;
+	background: rgba(0,0,0,0.5);
 	color: #fff;
 	border: none;
-	cursor: pointer;
-	padding: 4px;
 	border-radius: 4px;
-}
-
-.drawing-btn:hover {
-	background: rgba(0, 0, 0, 0.7);
-}
-
-.active-tool {
-	background: rgba(0, 0, 0, 0.7);
+	margin: 0 1px;
+	box-sizing: border-box;
 }
 
 .drawing-dropdown {
-	position: relative;
-	display: inline-block;
-	font-size: 14px;
-	background: rgba(0, 0, 0, 0.5);
-	border: none;
-	border-radius: 4px;
-}
-
-.drawing-dropdown-summary {
-	list-style: none;
-	cursor: pointer;
-	background: transparent;
-	color: #fff;
-	outline: none;
-}
-
-.drawing-dropdown-options {
 	display: flex;
-	flex-direction: column;
-	position: absolute;
-	top: 100%;
-	left: 0;
-	background: rgba(0, 0, 0, 0.5);
-	border: none;
-	border-radius: 4px;
-	z-index: 30;
+	align-items: center;
+	position: relative;
 }
 
-.drawing-color-input,
-.drawing-linewidth-input {
+.drawing-dropdown summary {
+	list-style: none;
+	outline: none;
 	border: none;
+	background: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	align-items: center;
 	cursor: pointer;
+}
+
+.drawing-dropdown[open] summary {
+	/* Optional: highlight when open */
+	background: rgba(0,0,0,0.7);
+}
+
+.drawing-linewidth-input,
+.drawing-size-slider {
+	height: 24px;
+	width: 36px;
+	font-size: 14px;
+	margin: 0 2px;
+	box-sizing: border-box;
+	border-radius: 4px;
+	border: 1px solid #444;
+	background: #fff;
+	color: #222;
+	text-align: center;
+	vertical-align: middle;
+}
+
+.drawing-size-slider {
+	width: 60px;
+	accent-color: #ff4081;
+	margin-left: 4px;
+	margin-right: 2px;
+}
+
+.drawing-color-input {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	background: none;
+	margin: 0 2px;
+	vertical-align: middle;
 }
 
 /* Visualizer Styles */
@@ -388,12 +413,12 @@ img.slider-media {
 
 .fullscreen-btn {
 	top: 10px;
-	right: 10px;
+	right: 50px;
 }
 
 .copy-btn {
 	top: 10px;
-	right: 38px;
+	right: 78px;
 }
 
 .notes-toggle-btn {
@@ -985,4 +1010,36 @@ img.slider-media {
 /* Active thumbnail */
 .active-thumbnail.compare-thumbnail {
     border: 2px solid rgba(255, 255, 255, 0.9);
+}
+
+/* Make YouTube iframes responsive in the slider */
+.slider-media iframe {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  aspect-ratio: 16/9;
+  border: none;
+  background: #000;
+}
+.slider-media {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.media-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawing-size-slider {
+	width: 60px;
+	margin: 0 8px;
+	vertical-align: middle;
+	accent-color: #ff4081; /* or your theme color */
+	height: 24px;
 }

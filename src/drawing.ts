@@ -17,6 +17,8 @@ export class DrawingAnnotation {
 	public color: string = "#FF0000"; // default red
 	public lineWidth: number = 2;
 
+	private previewImageData: ImageData | null = null;
+
 	constructor(container: HTMLElement) {
 		this.container = container;
 
@@ -71,45 +73,61 @@ export class DrawingAnnotation {
 			this.currentTool = "freehand";
 			this.resetToolbarHighlights();
 			freehandBtn.classList.add("active-tool");
+			sizeSlider.value = this.lineWidth.toString();
+			sizeNumber.value = this.lineWidth.toString();
+			sizeSlider.style.display = '';
+			sizeNumber.style.display = '';
 		};
 		this.toolbar.appendChild(freehandBtn);
 
-		// Geometric tools dropdown.
-		const geomDropdown = document.createElement("details");
-		geomDropdown.classList.add("drawing-dropdown");
-		// Summary shows current geometric tool (default "line").
-		const geomSummary = document.createElement("summary");
-		geomSummary.textContent = "➖"; // default for line
-		geomSummary.title = "Geometric tools (line, rect, circle)";
-		geomSummary.classList.add("drawing-dropdown-summary");
-		geomDropdown.appendChild(geomSummary);
+		// Geometric tool buttons (inline)
+		const lineBtn = document.createElement("button");
+		lineBtn.textContent = "➖";
+		lineBtn.title = "Line";
+		lineBtn.classList.add("drawing-btn", "line-btn");
+		lineBtn.onclick = () => {
+			this.currentTool = "line";
+			this.currentGeometricTool = "line";
+			this.resetToolbarHighlights();
+			lineBtn.classList.add("active-tool");
+			sizeSlider.value = this.lineWidth.toString();
+			sizeNumber.value = this.lineWidth.toString();
+			sizeSlider.style.display = '';
+			sizeNumber.style.display = '';
+		};
+		this.toolbar.appendChild(lineBtn);
 
-		// Container for dropdown options.
-		const geomOptions = document.createElement("div");
-		geomOptions.classList.add("drawing-dropdown-options");
+		const rectBtn = document.createElement("button");
+		rectBtn.textContent = "▭";
+		rectBtn.title = "Rectangle";
+		rectBtn.classList.add("drawing-btn", "rect-btn");
+		rectBtn.onclick = () => {
+			this.currentTool = "rectangle";
+			this.currentGeometricTool = "rectangle";
+			this.resetToolbarHighlights();
+			rectBtn.classList.add("active-tool");
+			sizeSlider.value = this.lineWidth.toString();
+			sizeNumber.value = this.lineWidth.toString();
+			sizeSlider.style.display = '';
+			sizeNumber.style.display = '';
+		};
+		this.toolbar.appendChild(rectBtn);
 
-		const geomTools: { tool: DrawingTool; icon: string; label: string }[] = [
-			{ tool: "line", icon: "➖", label: "Line" },
-			{ tool: "rectangle", icon: "▭", label: "Rectangle" },
-			{ tool: "circle", icon: "◯", label: "Circle" },
-		];
-
-		geomTools.forEach(opt => {
-			const btn = document.createElement("button");
-			btn.textContent = opt.icon;
-			btn.title = opt.label;
-			btn.classList.add("drawing-btn", "geom-tool-btn");
-			btn.onclick = (e) => {
-				e.stopPropagation();
-				this.currentTool = opt.tool;
-				this.currentGeometricTool = opt.tool;
-				geomSummary.textContent = opt.icon;
-				geomDropdown.removeAttribute("open");
-			};
-			geomOptions.appendChild(btn);
-		});
-		geomDropdown.appendChild(geomOptions);
-		this.toolbar.appendChild(geomDropdown);
+		const circleBtn = document.createElement("button");
+		circleBtn.textContent = "◯";
+		circleBtn.title = "Circle";
+		circleBtn.classList.add("drawing-btn", "circle-btn");
+		circleBtn.onclick = () => {
+			this.currentTool = "circle";
+			this.currentGeometricTool = "circle";
+			this.resetToolbarHighlights();
+			circleBtn.classList.add("active-tool");
+			sizeSlider.value = this.lineWidth.toString();
+			sizeNumber.value = this.lineWidth.toString();
+			sizeSlider.style.display = '';
+			sizeNumber.style.display = '';
+		};
+		this.toolbar.appendChild(circleBtn);
 
 		// Eraser button.
 		const eraserBtn = document.createElement("button");
@@ -120,6 +138,10 @@ export class DrawingAnnotation {
 			this.currentTool = "eraser";
 			this.resetToolbarHighlights();
 			eraserBtn.classList.add("active-tool");
+			sizeSlider.value = this.lineWidth.toString();
+			sizeNumber.value = this.lineWidth.toString();
+			sizeSlider.style.display = '';
+			sizeNumber.style.display = '';
 		};
 		this.toolbar.appendChild(eraserBtn);
 
@@ -132,6 +154,8 @@ export class DrawingAnnotation {
 			this.currentTool = "laser";
 			this.resetToolbarHighlights();
 			laserBtn.classList.add("active-tool");
+			sizeSlider.style.display = 'none';
+			sizeNumber.style.display = 'none';
 		};
 		this.toolbar.appendChild(laserBtn);
 
@@ -145,23 +169,41 @@ export class DrawingAnnotation {
 		};
 		this.toolbar.appendChild(colorInput);
 
-		// Line width input.
-		const widthInput = document.createElement("input");
-		widthInput.type = "number";
-		widthInput.min = "1";
-		widthInput.max = "10";
-		widthInput.value = this.lineWidth.toString();
-		widthInput.classList.add("drawing-linewidth-input");
-		widthInput.onchange = () => {
-			this.lineWidth = Number(widthInput.value);
+		// Line width number input.
+		const sizeNumber = document.createElement("input");
+		sizeNumber.type = "number";
+		sizeNumber.min = "1";
+		sizeNumber.max = "30";
+		sizeNumber.value = this.lineWidth.toString();
+		sizeNumber.classList.add("drawing-linewidth-input");
+		sizeNumber.onchange = () => {
+			this.lineWidth = Number(sizeNumber.value);
+			sizeSlider.value = sizeNumber.value;
 		};
-		this.toolbar.appendChild(widthInput);
+		this.toolbar.appendChild(sizeNumber);
+
+		// Add a slider for size
+		const sizeSlider = document.createElement('input');
+		sizeSlider.type = 'range';
+		sizeSlider.min = '1';
+		sizeSlider.max = '30';
+		sizeSlider.value = this.lineWidth.toString();
+		sizeSlider.className = 'drawing-size-slider';
+		sizeSlider.oninput = (e) => {
+			const val = (e.target as HTMLInputElement).value;
+			this.lineWidth = Number(val);
+			sizeNumber.value = val;
+		};
+		this.toolbar.appendChild(sizeSlider);
 	}
 
 	private handlePointerDown = (e: PointerEvent): void => {
 		this.drawing = true;
 		this.startX = e.offsetX;
 		this.startY = e.offsetY;
+		if (this.currentTool === "rectangle" || this.currentTool === "circle" || this.currentTool === "line") {
+			this.previewImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+		}
 		// For freehand, eraser, and laser, begin a path immediately.
 		if (this.currentTool === "freehand" || this.currentTool === "eraser" || this.currentTool === "laser") {
 			this.ctx.beginPath();
@@ -173,6 +215,30 @@ export class DrawingAnnotation {
 		if (!this.drawing) return;
 		const currentX = e.offsetX;
 		const currentY = e.offsetY;
+		if (this.currentTool === "rectangle" || this.currentTool === "circle" || this.currentTool === "line") {
+			if (this.previewImageData) {
+				this.ctx.putImageData(this.previewImageData, 0, 0);
+			}
+			this.ctx.strokeStyle = this.color;
+			this.ctx.lineWidth = this.lineWidth;
+			this.ctx.lineCap = "round";
+			if (this.currentTool === "rectangle") {
+				const rectWidth = currentX - this.startX;
+				const rectHeight = currentY - this.startY;
+				this.ctx.strokeRect(this.startX, this.startY, rectWidth, rectHeight);
+			} else if (this.currentTool === "circle") {
+				const radius = Math.sqrt(Math.pow(currentX - this.startX, 2) + Math.pow(currentY - this.startY, 2));
+				this.ctx.beginPath();
+				this.ctx.arc(this.startX, this.startY, radius, 0, Math.PI * 2);
+				this.ctx.stroke();
+			} else if (this.currentTool === "line") {
+				this.ctx.beginPath();
+				this.ctx.moveTo(this.startX, this.startY);
+				this.ctx.lineTo(currentX, currentY);
+				this.ctx.stroke();
+			}
+			return;
+		}
 		if (this.currentTool === "freehand") {
 			this.ctx.strokeStyle = this.color;
 			this.ctx.lineWidth = this.lineWidth;
@@ -190,7 +256,7 @@ export class DrawingAnnotation {
 			this.ctx.shadowBlur = 0;
 		} else if (this.currentTool === "eraser") {
 			this.ctx.globalCompositeOperation = "destination-out";
-			this.ctx.lineWidth = this.lineWidth * 5;
+			this.ctx.lineWidth = this.lineWidth;
 			this.ctx.lineTo(currentX, currentY);
 			this.ctx.stroke();
 			this.ctx.globalCompositeOperation = "source-over";
@@ -207,19 +273,31 @@ export class DrawingAnnotation {
 		this.ctx.lineWidth = this.lineWidth;
 		this.ctx.lineCap = "round";
 
-		if (this.currentTool === "line") {
-			this.ctx.beginPath();
-			this.ctx.moveTo(this.startX, this.startY);
-			this.ctx.lineTo(endX, endY);
-			this.ctx.stroke();
-		} else if (this.currentTool === "rectangle") {
+		if (this.currentTool === "rectangle") {
+			if (this.previewImageData) {
+				this.ctx.putImageData(this.previewImageData, 0, 0);
+				this.previewImageData = null;
+			}
 			const rectWidth = endX - this.startX;
 			const rectHeight = endY - this.startY;
 			this.ctx.strokeRect(this.startX, this.startY, rectWidth, rectHeight);
 		} else if (this.currentTool === "circle") {
+			if (this.previewImageData) {
+				this.ctx.putImageData(this.previewImageData, 0, 0);
+				this.previewImageData = null;
+			}
 			const radius = Math.sqrt(Math.pow(endX - this.startX, 2) + Math.pow(endY - this.startY, 2));
 			this.ctx.beginPath();
 			this.ctx.arc(this.startX, this.startY, radius, 0, Math.PI * 2);
+			this.ctx.stroke();
+		} else if (this.currentTool === "line") {
+			if (this.previewImageData) {
+				this.ctx.putImageData(this.previewImageData, 0, 0);
+				this.previewImageData = null;
+			}
+			this.ctx.beginPath();
+			this.ctx.moveTo(this.startX, this.startY);
+			this.ctx.lineTo(endX, endY);
 			this.ctx.stroke();
 		} else if (this.currentTool === "laser") {
 			// For laser, clear the drawn line after a brief delay.

@@ -102,9 +102,34 @@ export default class MediaSliderPlugin extends Plugin {
 	}
 
 	private getMediaSource(fileName: string): string {
-		if (fileName.startsWith("http://") || fileName.startsWith("https://")) {
-			return fileName;
+		// Handle standard markdown image syntax
+		const markdownImageMatch = fileName.match(/!\[(.*?)\]\((.*?)\)/);
+		if (markdownImageMatch) {
+			fileName = markdownImageMatch[2].trim();
 		}
+
+		// Handle markdown link format
+		const markdownLinkMatch = fileName.match(/!?\[\[(.*?)(?:\|(.*?))?\]\]/);
+		if (markdownLinkMatch) {
+			fileName = markdownLinkMatch[1].trim();
+		}
+
+		// Handle angle brackets
+		if (fileName.startsWith('<') && fileName.endsWith('>')) {
+			fileName = fileName.slice(1, -1).trim();
+		}
+
+		// Handle external URLs
+		if (fileName.startsWith("http://") || fileName.startsWith("https://")) {
+			// Decode URL if it's encoded
+			try {
+				return decodeURIComponent(fileName);
+			} catch (e) {
+				return fileName;
+			}
+		}
+
+		// Handle local files
 		let file = this.app.vault.getAbstractFileByPath(fileName);
 		if (!file) {
 			const matchingFiles = this.app.vault.getFiles().filter(
@@ -321,26 +346,40 @@ export default class MediaSliderPlugin extends Plugin {
 			let caption = null;
 			let compareGroup = null;
 			
-			// Check for the compare syntax with double pipe
-			// The key issue may be with this regex - make it more lenient
-			const compareModeMatch = line.match(/!?\[\[(.*?)(?:\|(.*?))?\s*\|\|\s*([\w\d-]+)\]\]/);
+			// Handle standard markdown image/link syntax with complex captions
+			const markdownMatch = line.match(/!?\[(.*?)\]\((.*?)(?:\s*\|\s*(.*?))?\)/);
+			if (markdownMatch) {
+				path = markdownMatch[2].trim();
+				// Use the caption from the link text if no pipe caption is provided
+				caption = markdownMatch[3] ? markdownMatch[3].trim() : 
+						 (markdownMatch[1] ? markdownMatch[1].trim() : null);
+				fileEntries.push({ path, caption, compareGroup });
+				continue;
+			}
 			
+			// Check for the compare syntax with double pipe
+			const compareModeMatch = line.match(/!?\[\[(.*?)(?:\|(.*?))?\s*\|\|\s*([\w\d-]+)\]\]/);
 			if (compareModeMatch) {
 				path = compareModeMatch[1].trim();
 				caption = compareModeMatch[2] ? compareModeMatch[2].trim() : null;
 				compareGroup = compareModeMatch[3].trim();
-				
-				console.log(`Found compare file: ${path} with group ${compareGroup}`);
 				fileEntries.push({ path, caption, compareGroup });
-			} else {
-				// Regular file reference
-				const match = line.match(/!?\[\[(.*?)(?:\|(.*?))?\]\]/);
-				if (match) {
-					path = match[1].trim();
-					caption = match[2] ? match[2].trim() : null;
-					
-					fileEntries.push({ path, caption, compareGroup: null });
-				}
+				continue;
+			}
+			
+			// Regular file reference
+			const match = line.match(/!?\[\[(.*?)(?:\|(.*?))?\]\]/);
+			if (match) {
+				path = match[1].trim();
+				caption = match[2] ? match[2].trim() : null;
+				fileEntries.push({ path, caption, compareGroup: null });
+				continue;
+			}
+			
+			// Direct URL or other format
+			if (line.trim()) {
+				path = line.trim();
+				fileEntries.push({ path, caption: null, compareGroup: null });
 			}
 		}
 		
@@ -349,24 +388,19 @@ export default class MediaSliderPlugin extends Plugin {
 		
 		for (const entry of fileEntries) {
 			if (entry.compareGroup) {
-				// Get the group ID (first part before the dash)
 				const groupId = entry.compareGroup.split('-')[0];
-				
-				// Create the group if it doesn't exist
 				if (!compareGroups.has(groupId)) {
 					compareGroups.set(groupId, { files: [], processed: false });
 				}
-				
-				// Add the file to its group
-				compareGroups.get(groupId)!.files.push({
-					path: entry.path,
-					caption: entry.caption
-				});
+				const group = compareGroups.get(groupId);
+				if (group) {
+					group.files.push({
+						path: entry.path,
+						caption: entry.caption
+					});
+				}
 			}
 		}
-		
-		// Log the found compare groups for debugging
-		console.log("Compare groups found:", Array.from(compareGroups.entries()));
 		
 		return { fileEntries, compareGroups };
 	}
@@ -537,8 +571,6 @@ export default class MediaSliderPlugin extends Plugin {
 
 		let updateDrawingOverlay: ((mediaKey: string) => void) | undefined;
 		const sliderWrapper = container.createDiv("media-slider-wrapper");
-
-		sliderWrapper.tabIndex = 0;
 
 		// Layout
 		if (
@@ -1091,20 +1123,15 @@ export default class MediaSliderPlugin extends Plugin {
 		    this.activeSliderContent = sliderContent;
 		});
 
-		// Auto-focus on initialization
-		setTimeout(() => {
-		    sliderContent.focus();
-		    this.activeSliderContent = sliderContent;
-		}, 100);
-
-		// Setup a global document keydown handler if not already done
+		// Update keyboard event handling
 		if (!this.keydownHandlerInitialized) {
-		    // Add this as a one-time setup
 		    document.addEventListener("keydown", (evt: KeyboardEvent) => {
-		        // If we have an active slider, handle its navigation
-		        if (this.activeSliderContent) {
+		        // Only handle keyboard events if we have an active slider and the event target is not an input element
+		        const target = evt.target as HTMLElement;
+		        if (this.activeSliderContent && 
+		            target && 
+		            !target.matches('input, textarea')) {
 		            if (evt.key === "ArrowLeft") {
-		                // Find the associated goPrev function for this slider
 		                const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
 		                if (sliderWrapper) {
 		                    const prevBtn = sliderWrapper.querySelector(".slider-btn.prev") as HTMLElement;
@@ -1114,7 +1141,6 @@ export default class MediaSliderPlugin extends Plugin {
 		                    }
 		                }
 		            } else if (evt.key === "ArrowRight") {
-		                // Find the associated goNext function for this slider
 		                const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
 		                if (sliderWrapper) {
 		                    const nextBtn = sliderWrapper.querySelector(".slider-btn.next") as HTMLElement;
@@ -1127,43 +1153,50 @@ export default class MediaSliderPlugin extends Plugin {
 		        }
 		    });
 		
-		    // Also handle clicks outside the slider to maintain slider context
+		    // Update click handling to be less aggressive
 		    document.addEventListener("click", (evt: MouseEvent) => {
-		        // Check if the click was inside a slider
-		        const clickedSlider = (evt.target as HTMLElement).closest(".slider-content");
-		        if (clickedSlider) {
-		            // Update active slider
+		        const target = evt.target as HTMLElement;
+		        if (!target) return;
+		        
+		        const clickedSlider = target.closest(".slider-content");
+		        if (clickedSlider && !target.matches('input, textarea')) {
 		            this.activeSliderContent = clickedSlider as HTMLElement;
 		        }
-		        // Note: We don't clear activeSliderContent when clicking outside
-		        // to maintain navigation context
 		    });
 		
-		    // Mark that we've initialized the global handler
 		    this.keydownHandlerInitialized = true;
 		}		
 
-		// Keep the original slider-specific key handler as backup
+		// Update slider-specific key handler
 		sliderContent.addEventListener("keydown", (evt: KeyboardEvent) => {
-		    if (evt.key === "ArrowLeft") {
-		        goPrev();
-		        evt.preventDefault();
-		    } else if (evt.key === "ArrowRight") {
-		        goNext();
-		        evt.preventDefault();
+		    // Only handle keyboard events if the target is not an input element
+		    const target = evt.target as HTMLElement;
+		    if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) {
+		        if (evt.key === "ArrowLeft") {
+		            goPrev();
+		            evt.preventDefault();
+		        } else if (evt.key === "ArrowRight") {
+		            goNext();
+		            evt.preventDefault();
+		        }
 		    }
 		});		
 
-		// Keep the original wheel handler
+		// Update wheel handler to be less aggressive
 		sliderContent.addEventListener("wheel", (evt: WheelEvent) => {
-		    // Only interpret left-right wheel movement as next/prev
-		    if (Math.abs(evt.deltaX) > Math.abs(evt.deltaY)) {
-		        if (evt.deltaX > 30) {
-		            goNext();
-		            evt.preventDefault();
-		        } else if (evt.deltaX < -30) {
-		            goPrev();
-		            evt.preventDefault();
+		    const target = evt.target as HTMLElement;
+		    if (!target) return;
+		    
+		    // Only handle wheel events if the target is not an input element
+		    if (!target.matches('input, textarea')) {
+		        if (Math.abs(evt.deltaX) > Math.abs(evt.deltaY)) {
+		            if (evt.deltaX > 30) {
+		                goNext();
+		                evt.preventDefault();
+		            } else if (evt.deltaX < -30) {
+		                goPrev();
+		                evt.preventDefault();
+		            }
 		        }
 		    }
 		});
@@ -1312,11 +1345,6 @@ export default class MediaSliderPlugin extends Plugin {
 		if (settings.slideshowSpeed > 0) {
 			setInterval(goNext, settings.slideshowSpeed * 1000);
 		}
-
-		sliderWrapper.tabIndex = 0;
-		sliderWrapper.addEventListener("click", () => {
-			sliderWrapper.focus();
-		});
 
 		// Clean up event listeners when the component is removed
 		this.register(() => {
