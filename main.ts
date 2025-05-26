@@ -173,17 +173,14 @@ export default class MediaSliderPlugin extends Plugin {
 			return this.markdownCache.get(fileName)!;
 		}
 		const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-		if (abstractFile && typeof abstractFile === 'object' && 'extension' in abstractFile) {
-			if (abstractFile instanceof TFile) {
-				const content = await this.app.vault.read(abstractFile);
-				this.markdownCache.set(fileName, content);
-				return content;
-			} else {
-				console.warn("Abstract file is not a TFile:", abstractFile);
-				return "";
-			}
+		if (abstractFile && abstractFile instanceof TFile) {
+			const content = await this.app.vault.read(abstractFile);
+			this.markdownCache.set(fileName, content);
+			return content;
+		} else {
+			console.warn("Abstract file is not a TFile:", abstractFile);
+			return "";
 		}
-		return "";
 	}
 
 	private throttle<T extends (...args: any[]) => any>(fn: T, delay: number): T {
