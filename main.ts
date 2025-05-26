@@ -173,7 +173,7 @@ export default class MediaSliderPlugin extends Plugin {
 			return this.markdownCache.get(fileName)!;
 		}
 		const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-		if (abstractFile && abstractFile instanceof TFile) {
+		if (abstractFile && typeof abstractFile === "object" && abstractFile instanceof TFile) {
 			const content = await this.app.vault.read(abstractFile);
 			this.markdownCache.set(fileName, content);
 			return content;
