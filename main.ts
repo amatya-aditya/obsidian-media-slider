@@ -173,11 +173,11 @@ export default class MediaSliderPlugin extends Plugin {
 			return this.markdownCache.get(fileName)!;
 		}
 		const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-		if (abstractFile && "extension" in abstractFile) {
+		if (abstractFile && typeof abstractFile === 'object' && 'extension' in abstractFile) {
 			if (abstractFile instanceof TFile) {
 				const content = await this.app.vault.read(abstractFile);
 				this.markdownCache.set(fileName, content);
-				return "";
+				return content;
 			} else {
 				console.warn("Abstract file is not a TFile:", abstractFile);
 				return "";
@@ -1127,26 +1127,27 @@ export default class MediaSliderPlugin extends Plugin {
 		if (!this.keydownHandlerInitialized) {
 		    document.addEventListener("keydown", (evt: KeyboardEvent) => {
 		        // Only handle keyboard events if we have an active slider and the event target is not an input element
-		        const target = evt.target as HTMLElement;
-		        if (this.activeSliderContent && 
-		            target && 
-		            !target.matches('input, textarea')) {
-		            if (evt.key === "ArrowLeft") {
-		                const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
-		                if (sliderWrapper) {
-		                    const prevBtn = sliderWrapper.querySelector(".slider-btn.prev") as HTMLElement;
-		                    if (prevBtn) {
-		                        prevBtn.click();
-		                        evt.preventDefault();
+		        const target = evt.target as EventTarget | null;
+		        if (this.activeSliderContent && target && target instanceof HTMLElement) {
+		            const tag = target.tagName.toLowerCase();
+		            if (tag !== 'input' && tag !== 'textarea') {
+		                if (evt.key === "ArrowLeft") {
+		                    const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
+		                    if (sliderWrapper) {
+		                        const prevBtn = sliderWrapper.querySelector(".slider-btn.prev") as HTMLElement;
+		                        if (prevBtn) {
+		                            prevBtn.click();
+		                            evt.preventDefault();
+		                        }
 		                    }
-		                }
-		            } else if (evt.key === "ArrowRight") {
-		                const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
-		                if (sliderWrapper) {
-		                    const nextBtn = sliderWrapper.querySelector(".slider-btn.next") as HTMLElement;
-		                    if (nextBtn) {
-		                        nextBtn.click();
-		                        evt.preventDefault();
+		                } else if (evt.key === "ArrowRight") {
+		                    const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
+		                    if (sliderWrapper) {
+		                        const nextBtn = sliderWrapper.querySelector(".slider-btn.next") as HTMLElement;
+		                        if (nextBtn) {
+		                            nextBtn.click();
+		                            evt.preventDefault();
+		                        }
 		                    }
 		                }
 		            }
@@ -1170,14 +1171,17 @@ export default class MediaSliderPlugin extends Plugin {
 		// Update slider-specific key handler
 		sliderContent.addEventListener("keydown", (evt: KeyboardEvent) => {
 		    // Only handle keyboard events if the target is not an input element
-		    const target = evt.target as HTMLElement;
-		    if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) {
-		        if (evt.key === "ArrowLeft") {
-		            goPrev();
-		            evt.preventDefault();
-		        } else if (evt.key === "ArrowRight") {
-		            goNext();
-		            evt.preventDefault();
+		    const target = evt.target as EventTarget | null;
+		    if (target && target instanceof HTMLElement) {
+		        const tag = target.tagName.toLowerCase();
+		        if (tag !== 'input' && tag !== 'textarea') {
+		            if (evt.key === "ArrowLeft") {
+		                goPrev();
+		                evt.preventDefault();
+		            } else if (evt.key === "ArrowRight") {
+		                goNext();
+		                evt.preventDefault();
+		            }
 		        }
 		    }
 		});		
