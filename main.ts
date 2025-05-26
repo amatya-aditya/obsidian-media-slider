@@ -173,8 +173,8 @@ export default class MediaSliderPlugin extends Plugin {
 			return this.markdownCache.get(fileName)!;
 		}
 		const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-		if (abstractFile && typeof abstractFile === "object" && abstractFile instanceof TFile) {
-			const content = await this.app.vault.read(abstractFile);
+		if (abstractFile instanceof TFile) {
+			const content = await this.app.vault.read(abstractFile as TFile);
 			this.markdownCache.set(fileName, content);
 			return content;
 		} else {
@@ -1005,7 +1005,7 @@ export default class MediaSliderPlugin extends Plugin {
 						// The media-wrapper CSS class will be automatically targeted by the CSS selector
 					} else if (/\.(md)$/i.test(fileName)) {
 						const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-						if (abstractFile && "extension" in abstractFile) {
+						if (abstractFile && (abstractFile as any) instanceof TFile) {
 							const content = await this.getMarkdownContent(fileName);
 							mediaWrapper.empty();
 							mediaWrapper.style.display = "block";
