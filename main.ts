@@ -1011,6 +1011,7 @@ export default class MediaSliderPlugin extends Plugin {
 						if (abstractFile && "extension" in abstractFile) {
 							const content = await this.getMarkdownContent(fileName);
 							mediaWrapper.empty();
+							mediaWrapper.style.display = "block";
 							await MarkdownRenderer.render(this.app, content, mediaWrapper, abstractFile.path, this);
 						}
 					} else if (this.isYouTubeURL(fileName)) {

@@ -1043,3 +1043,8 @@ img.slider-media {
 	accent-color: #ff4081; /* or your theme color */
 	height: 24px;
 }
+
+.media-wrapper.markdown-content {
+  display: block !important;
+  padding: 0 8px;
+}
