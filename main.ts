@@ -336,7 +336,7 @@ export default class MediaSliderPlugin extends Plugin {
 	// New method to parse media files and identify compare groups
 	private parseMediaFiles(mediaLines: string[]): {
 		fileEntries: { path: string; caption: string | null; compareGroup: string | null }[];
-		compareGroups: Map<string, { files: {path: string; caption: string | null}[]; processed: boolean }>;
+		compareGroups: Map<string, { files: { path: string; caption: string | null }[]; processed: boolean }>;
 	} {
 		const fileEntries: { path: string; caption: string | null; compareGroup: string | null }[] = [];
 		
@@ -384,7 +384,7 @@ export default class MediaSliderPlugin extends Plugin {
 		}
 		
 		// Second pass - group files by compare group ID
-		const compareGroups = new Map<string, { files: {path: string; caption: string | null}[]; processed: boolean }>();
+		const compareGroups = new Map<string, { files: { path: string; caption: string | null }[]; processed: boolean }>();
 		
 		for (const entry of fileEntries) {
 			if (entry.compareGroup) {
@@ -1171,7 +1171,6 @@ export default class MediaSliderPlugin extends Plugin {
 
 		// Update slider-specific key handler
 		sliderContent.addEventListener("keydown", (evt: KeyboardEvent) => {
-		    // Only handle keyboard events if the target is not an input element
 		    const target = evt.target as EventTarget | null;
 		    if (target && target instanceof HTMLElement) {
 		        const tag = target.tagName.toLowerCase();
