@@ -1,4 +1,4 @@
-import { Plugin, PluginSettingTab, App, Setting, MarkdownPostProcessorContext, TFile, MarkdownRenderer, MarkdownView, parseYaml } from "obsidian";
+import { Plugin, PluginSettingTab, App, Setting, MarkdownPostProcessorContext, TFile, MarkdownRenderer, MarkdownView, parseYaml, setIcon } from "obsidian";
 import { compressImage } from "./src/compression";
 import { NotesManager } from "./src/notes";
 import { DrawingAnnotation } from "./src/drawing";
@@ -355,7 +355,7 @@ export default class MediaSliderPlugin extends Plugin {
 			}
 			
 			// Check for the compare syntax with double pipe
-			const compareModeMatch = line.match(/!?\[\[(.*?)(?:\|(.*?))?\s*\|\|\s*([\w\d-]+)\]\]/);
+			const compareModeMatch = line.match(/!?\[\[(.*?)(?:\|(.*?))?\s*\|\|\s*([\w\d-]+)\s*\]\]/);
 			if (compareModeMatch) {
 				path = compareModeMatch[1].trim();
 				caption = compareModeMatch[2] ? compareModeMatch[2].trim() : null;
@@ -564,6 +564,9 @@ export default class MediaSliderPlugin extends Plugin {
 		ctx: MarkdownPostProcessorContext,
 		compareGroups: Map<string, { files: { path: string; caption: string | null }[]; processed: boolean }> = new Map()
 	) {
+		// Remove any existing control buttons before adding new ones
+		container.querySelectorAll('.fullscreen-btn, .copy-btn, .notes-toggle-btn, .drawing-toggle-btn').forEach(btn => btn.remove());
+
 		container.empty();
 
 		let updateDrawingOverlay: ((mediaKey: string) => void) | undefined;
@@ -585,7 +588,7 @@ export default class MediaSliderPlugin extends Plugin {
 		sliderContent.style.setProperty('--transition-duration', settings.transitionDuration + 'ms');
 
 		const sliderContainer = sliderContent.createDiv("slider-container");
-		const mediaWrapper = sliderContainer.createDiv("media-wrapper");
+		let mediaWrapper = sliderContainer.createDiv("media-wrapper");
 		const captionContainer = sliderContent.createDiv("slider-caption-container");
 
 		let thumbnailContainer: HTMLElement | null = null;
@@ -614,7 +617,8 @@ export default class MediaSliderPlugin extends Plugin {
 
 		// Enhanced view (fullscreen, copy link, etc.)
 		if (settings.enhancedView) {
-			const fullScreenBtn = sliderWrapper.createEl("button", { text: "⛶", cls: "fullscreen-btn" });
+			const fullScreenBtn = sliderWrapper.createEl("button", { cls: "fullscreen-btn" });
+			setIcon(fullScreenBtn, "maximize");
 			fullScreenBtn.onclick = () => {
 				if (!document.fullscreenElement) {
 					sliderWrapper.requestFullscreen().catch(err => console.error("Error enabling fullscreen:", err));
@@ -625,7 +629,8 @@ export default class MediaSliderPlugin extends Plugin {
 				}
 			};
 
-			const copyBtn = sliderWrapper.createEl("button", { text: "📋", cls: "copy-btn" });
+			const copyBtn = sliderWrapper.createEl("button", { cls: "copy-btn" });
+			setIcon(copyBtn, "copy");
 			copyBtn.onclick = async () => {
 				const currentEntry = files[currentIndex];
 				
@@ -647,7 +652,8 @@ export default class MediaSliderPlugin extends Plugin {
 		let notesContainer: HTMLElement | null = null;
 		let notesTextarea: HTMLTextAreaElement | null = null;
 		if (settings.interactiveNotes) {
-			const notesToggleBtn = sliderWrapper.createEl("button", { text: "📝", cls: "notes-toggle-btn" });
+			const notesToggleBtn = sliderWrapper.createEl("button", { cls: "notes-toggle-btn" });
+			setIcon(notesToggleBtn, "sticky-note");
 			notesContainer = sliderWrapper.createDiv("notes-container");
 			notesTextarea = document.createElement("textarea");
 			notesTextarea.classList.add("notes-textarea");
@@ -655,8 +661,8 @@ export default class MediaSliderPlugin extends Plugin {
 			notesContainer.appendChild(notesTextarea);
 
 			const saveNotesBtn = document.createElement("button");
-			saveNotesBtn.textContent = "💾";
 			saveNotesBtn.classList.add("notes-save-btn");
+			setIcon(saveNotesBtn, "save");
 			saveNotesBtn.onclick = async () => {
 				const mediaKey = `${sliderId}-${files[currentIndex]}`;
 				if (notesTextarea) {
@@ -683,7 +689,8 @@ export default class MediaSliderPlugin extends Plugin {
 		let drawingAnnotation: DrawingAnnotation | null = null;
 		let clearDrawingBtn: HTMLElement | null = null;
 		if (this.settings.enableDrawingAnnotation) {
-			const drawingToggleBtn = sliderWrapper.createEl("button", { text: "✏️", cls: "drawing-toggle-btn" });
+			const drawingToggleBtn = sliderWrapper.createEl("button", { cls: "drawing-toggle-btn" });
+			setIcon(drawingToggleBtn, "edit-3");
 			updateDrawingOverlay = (mediaKey: string) => {
 				const existingOverlay = sliderContainer.querySelector(".drawing-overlay");
 				if (existingOverlay) existingOverlay.remove();
@@ -692,7 +699,8 @@ export default class MediaSliderPlugin extends Plugin {
 					const overlay = sliderContainer.createEl("img", { attr: { src: savedDrawing } });
 					overlay.classList.add("drawing-overlay");
 					if (!clearDrawingBtn) {
-						clearDrawingBtn = sliderWrapper.createEl("button", { text: "🗑️", cls: "clear-drawing-btn" });
+						clearDrawingBtn = sliderWrapper.createEl("button", { cls: "clear-drawing-btn" });
+						setIcon(clearDrawingBtn, "trash");
 						clearDrawingBtn.onclick = async () => {
 							delete this.drawingData[mediaKey];
 							await this.saveDrawingData();
@@ -718,7 +726,7 @@ export default class MediaSliderPlugin extends Plugin {
 					await this.saveDrawingData();
 					drawingAnnotation.destroy();
 					drawingAnnotation = null;
-					drawingToggleBtn.textContent = "✏️";
+					setIcon(drawingToggleBtn, "edit-3");
 					updateDrawingOverlay?.(mediaKey);
 				} else {
 					if (this.drawingData[mediaKey]) {
@@ -732,7 +740,7 @@ export default class MediaSliderPlugin extends Plugin {
 						}
 					}
 					drawingAnnotation = new DrawingAnnotation(sliderContainer);
-					drawingToggleBtn.textContent = "💾";
+					setIcon(drawingToggleBtn, "save");
 				}
 			};
 		}
@@ -751,13 +759,17 @@ export default class MediaSliderPlugin extends Plugin {
 				delete compareInstances[key];
 			});
 			
-			// Transition out
+			// Remove all transition classes first
 			mediaWrapper.classList.remove(
 				"transition-fade-in", "transition-slide-next-in", "transition-slide-prev-in", "transition-zoom-in",
 				"transition-slide-up-in", "transition-slide-down-in", "transition-flip-in", "transition-flip-vertical-in",
-				"transition-rotate-in", "transition-blur-in", "transition-squeeze-in"
+				"transition-rotate-in", "transition-blur-in", "transition-squeeze-in",
+				"transition-fade-out", "transition-slide-next-out", "transition-slide-prev-out", "transition-zoom-out",
+				"transition-slide-up-out", "transition-slide-down-out", "transition-flip-out", "transition-flip-vertical-out",
+				"transition-rotate-out", "transition-blur-out", "transition-squeeze-out"
 			);
 
+			// Add transition-out class
 			switch (settings.transitionEffect) {
 				case "fade":
 					mediaWrapper.classList.add("transition-fade-out");
@@ -793,308 +805,343 @@ export default class MediaSliderPlugin extends Plugin {
 					mediaWrapper.classList.add("transition-fade-out");
 			}
 
-			setTimeout(async () => {
-				mediaWrapper.empty();
-				if (settings.captionMode === "below") captionContainer.empty();
+			// Wait for the transition-out to complete
+			await new Promise(resolve => setTimeout(resolve, settings.transitionDuration));
 
-				if (thumbnailEls.length > 0) {
-					thumbnailEls.forEach((thumb, idx) => {
-						thumb.classList.toggle("active-thumbnail", idx === currentIndex);
-					});
+			// Clear the content
+			mediaWrapper.empty();
+			if (settings.captionMode === "below") captionContainer.empty();
+
+			// Update thumbnails and scroll to active thumbnail
+			if (thumbnailEls.length > 0) {
+				thumbnailEls.forEach((thumb, idx) => {
+					thumb.classList.toggle("active-thumbnail", idx === currentIndex);
+				});
+
+				// Scroll to active thumbnail
+				const activeThumb = thumbnailEls[currentIndex];
+				if (activeThumb && thumbnailContainer) {
+					// Get the container's dimensions and scroll position
+					const containerRect = thumbnailContainer.getBoundingClientRect();
+					const thumbRect = activeThumb.getBoundingClientRect();
+
+					// Calculate the scroll position needed to center the thumbnail
+					if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
+						// Vertical scrolling
+						const scrollTop = activeThumb.offsetTop - (containerRect.height / 2) + (thumbRect.height / 2);
+						thumbnailContainer.scrollTo({
+							top: scrollTop,
+							behavior: 'smooth'
+						});
+					} else {
+						// Horizontal scrolling
+						const scrollLeft = activeThumb.offsetLeft - (containerRect.width / 2) + (thumbRect.width / 2);
+						thumbnailContainer.scrollTo({
+							left: scrollLeft,
+							behavior: 'smooth'
+						});
+					}
 				}
+			}
 
-				const currentEntry = files[currentIndex];
-				console.log("Current entry:", currentEntry);
+			// Process the current entry
+			const currentEntry = files[currentIndex];
+			console.log("Current entry:", currentEntry);
+			
+			// Handle compare groups
+			if (currentEntry && currentEntry.startsWith('__COMPARE_GROUP_')) {
+				const groupId = currentEntry.slice('__COMPARE_GROUP_'.length);
+				console.log("Rendering compare group:", groupId);
+				console.log("Available groups:", Array.from(compareGroups.keys()));
 				
-				// Handle compare groups
-				if (currentEntry && currentEntry.startsWith('__COMPARE_GROUP_')) {
-					const groupId = currentEntry.slice('__COMPARE_GROUP_'.length);
-					console.log("Rendering compare group:", groupId);
-					console.log("Available groups:", Array.from(compareGroups.keys()));
+				const group = compareGroups.get(groupId);
+				console.log("Group data:", group);
+				
+				if (group && group.files.length >= 2) {
+					// We have a valid comparison group with at least 2 files
+					const file1 = group.files[0];
+					const file2 = group.files[1];
 					
-					const group = compareGroups.get(groupId);
-					console.log("Group data:", group);
+					console.log("Compare files:", file1.path, file2.path);
 					
-					if (group && group.files.length >= 2) {
-						// We have a valid comparison group with at least 2 files
-						const file1 = group.files[0];
-						const file2 = group.files[1];
+					try {
+						// Get image sources
+						const img1Path = this.getMediaSource(file1.path);
+						const img2Path = this.getMediaSource(file2.path);
 						
-						console.log("Compare files:", file1.path, file2.path);
+						console.log("Image paths:", img1Path, img2Path);
 						
-						try {
-							// Get image sources
-							const img1Path = this.getMediaSource(file1.path);
-							const img2Path = this.getMediaSource(file2.path);
+						// Check if compare mode is enabled
+						if (settings.compareMode?.enabled) {
+							// Create compare mode options
+							const compareOptions: CompareOptions = {
+								orientation: settings.compareMode?.orientation || "vertical",
+								initialPosition: settings.compareMode?.initialPosition || 50,
+								showLabels: settings.compareMode?.showLabels || false,
+								label1: settings.compareMode?.label1 || "Before",
+								label2: settings.compareMode?.label2 || "After",
+								swapImages: settings.compareMode?.swapImages || false,
+								enabled: true
+							};
 							
-							console.log("Image paths:", img1Path, img2Path);
+							// Create compare instance
+							const compareInstance = new CompareMode(
+								mediaWrapper,
+								img1Path,
+								img2Path,
+								file1.caption,
+								file2.caption,
+								compareOptions
+							);
 							
-							// Check if compare mode is enabled
-							if (settings.compareMode?.enabled) {
-								// Create compare mode options
-								const compareOptions: CompareOptions = {
-									orientation: settings.compareMode?.orientation || "vertical",
-									initialPosition: settings.compareMode?.initialPosition || 50,
-									showLabels: settings.compareMode?.showLabels || false,
-									label1: settings.compareMode?.label1 || "Before",
-									label2: settings.compareMode?.label2 || "After",
-									swapImages: settings.compareMode?.swapImages || false,
-									enabled: true
-								};
-								
-								// Create compare instance
-								const compareInstance = new CompareMode(
-									mediaWrapper,
-									img1Path,
-									img2Path,
-									file1.caption,
-									file2.caption,
-									compareOptions
-								);
-								
-								// Render the comparison
-								compareInstance.render();
-								
-								// Store for cleanup
-								compareInstances[groupId] = compareInstance;
-							} else {
-								// If compare mode is disabled, show both images in regular slider format
-								// First image
-								const img1 = mediaWrapper.createEl("img", { attr: { src: img1Path } });
-								img1.classList.add("slider-media");
-								this.addZoomPanSupport(img1, sliderContainer);
-								
-								if (file1.caption) {
-									if (settings.captionMode === "overlay") {
-										const capEl = mediaWrapper.createEl("div", { text: file1.caption });
-										capEl.classList.add("slider-caption-overlay");
-									} else {
-										const capEl = captionContainer.createEl("div", { text: file1.caption });
-										capEl.classList.add("slider-caption");
-									}
-								}
-
-								// Second image
-								const img2 = mediaWrapper.createEl("img", { attr: { src: img2Path } });
-								img2.classList.add("slider-media");
-								this.addZoomPanSupport(img2, sliderContainer);
-								
-								if (file2.caption) {
-									if (settings.captionMode === "overlay") {
-										const capEl = mediaWrapper.createEl("div", { text: file2.caption });
-										capEl.classList.add("slider-caption-overlay");
-									} else {
-										const capEl = captionContainer.createEl("div", { text: file2.caption });
-										capEl.classList.add("slider-caption");
-									}
+							// Render the comparison
+							compareInstance.render();
+							
+							// Store for cleanup
+							compareInstances[groupId] = compareInstance;
+						} else {
+							// If compare mode is disabled, show both images in regular slider format
+							// First image
+							const img1 = mediaWrapper.createEl("img", { attr: { src: img1Path } });
+							img1.classList.add("slider-media");
+							this.addZoomPanSupport(img1, sliderContainer);
+							
+							if (file1.caption) {
+								if (settings.captionMode === "overlay") {
+									const capEl = mediaWrapper.createEl("div", { text: file1.caption });
+									capEl.classList.add("slider-caption-overlay");
+								} else {
+									const capEl = captionContainer.createEl("div", { text: file1.caption });
+									capEl.classList.add("slider-caption");
 								}
 							}
-						} catch (error) {
-							console.error("Error rendering comparison:", error);
-							mediaWrapper.createEl("div", { text: `Error rendering comparison: ${error.message || "Unknown error"}` });
+
+							// Second image
+							const img2 = mediaWrapper.createEl("img", { attr: { src: img2Path } });
+							img2.classList.add("slider-media");
+							this.addZoomPanSupport(img2, sliderContainer);
+							
+							if (file2.caption) {
+								if (settings.captionMode === "overlay") {
+									const capEl = mediaWrapper.createEl("div", { text: file2.caption });
+									capEl.classList.add("slider-caption-overlay");
+								} else {
+									const capEl = captionContainer.createEl("div", { text: file2.caption });
+									capEl.classList.add("slider-caption");
+								}
+							}
 						}
-					} else {
-						// Show error message
-						const errorMessage = group 
-							? `Not enough images in group ${groupId} (found ${group.files?.length || 0}, need at least 2)` 
-							: `Group ${groupId} not found`;
-						
-						console.error(errorMessage);
-						mediaWrapper.createEl("div", { text: errorMessage });
+					} catch (error) {
+						console.error("Error rendering comparison:", error);
+						mediaWrapper.createEl("div", { text: `Error rendering comparison: ${error.message || "Unknown error"}` });
 					}
 				} else {
-					// Regular file display
-					let [fileName, caption] = currentEntry.split("|").map(s => s.trim());
-					if (!fileName.includes(".")) {
-						const mdFile = this.app.metadataCache.getFirstLinkpathDest(fileName, "");
-						if (mdFile && mdFile.extension === "md") {
-							fileName = mdFile.path;
-						}
-					}
-
-					const filePath = this.getMediaSource(fileName);
-
-					// Determine if compression should be used
-					let useCompression = this.settings.enableCompression;
+					// Show error message
+					const errorMessage = group 
+						? `Not enough images in group ${groupId} (found ${group.files?.length || 0}, need at least 2)` 
+						: `Group ${groupId} not found`;
 					
-					// Check if slider-specific setting is provided
-					if (settings.compression !== null && settings.compression !== undefined) {
-						// Handle "off" or false value
-						if (settings.compression === "off" || settings.compression === false) {
-							useCompression = false;
-						} else {
-							useCompression = true;
-						}
+					console.error(errorMessage);
+					mediaWrapper.createEl("div", { text: errorMessage });
+				}
+			} else {
+				// Regular file display
+				let [fileName, caption] = currentEntry.split("|").map(s => s.trim());
+				if (!fileName.includes(".")) {
+					const mdFile = this.app.metadataCache.getFirstLinkpathDest(fileName, "");
+					if (mdFile && mdFile.extension === "md") {
+						fileName = mdFile.path;
 					}
+				}
 
-					// Quality: Use local slider "compression" quality or fallback to global
-					const quality = typeof settings.compression === 'number'
-						? settings.compression
-						: this.settings.compressionQuality;
+				const filePath = this.getMediaSource(fileName);
 
-					if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
-						try {
-							if (/\.gif$/i.test(fileName)) {
-								// For GIFs, avoid compression to preserve animation
-								const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
-								img.classList.add("slider-media", "gif-media");
-								this.addZoomPanSupport(img, sliderContainer);
-							}
-							// For SVG files, we don't need compression
-							else if (/\.svg$/i.test(fileName)) {
-								const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
-								img.classList.add("slider-media");
-								this.addZoomPanSupport(img, sliderContainer);
-							} else if (!useCompression) {
-								// Skip compression if disabled
-								const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
-								img.classList.add("slider-media");
-								this.addZoomPanSupport(img, sliderContainer);
-							} else {
-								// For other image formats, use compression if possible
-								const compressedUrl = await compressImage(filePath, 1600, 1200, quality);
-								const img = mediaWrapper.createEl("img", { attr: { src: compressedUrl } });
-								img.classList.add("slider-media");
-								this.addZoomPanSupport(img, sliderContainer);
-							}
-						} catch (err) {
-							// If compression fails, fallback to direct display
-							console.error("Error processing image:", err);
+				// Determine if compression should be used
+				let useCompression = this.settings.enableCompression;
+				
+				// Check if slider-specific setting is provided
+				if (settings.compression !== null && settings.compression !== undefined) {
+					// Handle "off" or false value
+					if (settings.compression === "off" || settings.compression === false) {
+						useCompression = false;
+					} else {
+						useCompression = true;
+					}
+				}
+
+				// Quality: Use local slider "compression" quality or fallback to global
+				const quality = typeof settings.compression === 'number'
+					? settings.compression
+					: this.settings.compressionQuality;
+
+				if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
+					try {
+						if (/\.gif$/i.test(fileName)) {
+							// For GIFs, avoid compression to preserve animation
+							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+							img.classList.add("slider-media", "gif-media");
+							this.addZoomPanSupport(img, sliderContainer);
+						}
+						// For SVG files, we don't need compression
+						else if (/\.svg$/i.test(fileName)) {
 							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
 							img.classList.add("slider-media");
 							this.addZoomPanSupport(img, sliderContainer);
-						}
-					} else if (/\.(mp4|webm|mkv|mov|ogv)$/i.test(fileName)) {
-						const video = mediaWrapper.createEl("video", { attr: { src: filePath, controls: "true" } });
-						if (settings.autoplay) video.setAttribute("autoplay", "true");
-						video.classList.add("slider-media");
-
-						if (this.settings.enableVisualizer) {
-							new Visualizer(video, sliderContainer, {
-								color: this.settings.visualizerColor,
-								height: this.settings.visualizerHeight
-							});
-						}
-					} else if (/\.(mp3|ogg|wav|flac|webm|3gp||m4a)$/i.test(fileName)) {
-						const audio = mediaWrapper.createEl("audio", { attr: { src: filePath, controls: "true" } });
-						audio.classList.add("slider-media", "audio-media");
-
-						if (this.settings.enableVisualizer) {
-							new Visualizer(audio, sliderContainer, {
-								color: this.settings.visualizerColor,
-								height: this.settings.visualizerHeight
-							});
-						}
-					} else if (/\.(pdf)$/i.test(fileName)) {
-						// Create a container with CSS classes instead of inline styles
-						const pdfContainer = mediaWrapper.createEl("div", { cls: "pdf-container" });
-						
-						// Create the iframe with proper attributes and CSS classes
-						const iframe = pdfContainer.createEl("iframe", {
-							attr: { 
-								src: filePath, 
-								width: "100%", 
-								height: "100%",
-								frameborder: "0",
-								allowfullscreen: "true"
-							}
-						});
-						
-						iframe.classList.add("slider-media", "pdf-media");
-						
-						// The media-wrapper CSS class will be automatically targeted by the CSS selector
-					} else if (/\.(md)$/i.test(fileName)) {
-						const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-						if (abstractFile && (abstractFile as any) instanceof TFile) {
-							const content = await this.getMarkdownContent(fileName);
-							mediaWrapper.empty();
-							mediaWrapper.style.display = "block";
-							await MarkdownRenderer.render(this.app, content, mediaWrapper, abstractFile.path, this);
-						}
-					} else if (this.isYouTubeURL(fileName)) {
-						const embedUrl = this.getYouTubeEmbedURL(fileName);
-						const iframe = mediaWrapper.createEl("iframe", {
-							attr: {
-								src: embedUrl,
-								frameborder: "0",
-								allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
-								allowfullscreen: "true",
-								width: "100%",
-								height: "100%"
-							}
-						});
-						iframe.classList.add("slider-media");
-					} else {
-						const link = mediaWrapper.createEl("a", {
-							text: "Open File",
-							attr: { href: filePath, target: "_blank" }
-						});
-						link.classList.add("slider-media");
-					}
-
-					if (caption) {
-						if (settings.captionMode === "overlay") {
-							const capEl = mediaWrapper.createEl("div", { text: caption });
-							capEl.classList.add("slider-caption-overlay");
+						} else if (!useCompression) {
+							// Skip compression if disabled
+							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+							img.classList.add("slider-media");
+							this.addZoomPanSupport(img, sliderContainer);
 						} else {
-							const capEl = captionContainer.createEl("div", { text: caption });
-							capEl.classList.add("slider-caption");
+							// For other image formats, use compression if possible
+							const compressedUrl = await compressImage(filePath, 1600, 1200, quality);
+							const img = mediaWrapper.createEl("img", { attr: { src: compressedUrl } });
+							img.classList.add("slider-media");
+							this.addZoomPanSupport(img, sliderContainer);
 						}
+					} catch (err) {
+						// If compression fails, fallback to direct display
+						console.error("Error processing image:", err);
+						const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
+						img.classList.add("slider-media");
+						this.addZoomPanSupport(img, sliderContainer);
+					}
+				} else if (/\.(mp4|webm|mkv|mov|ogv)$/i.test(fileName)) {
+					const video = mediaWrapper.createEl("video", { attr: { src: filePath, controls: "true" } });
+					if (settings.autoplay) video.setAttribute("autoplay", "true");
+					video.classList.add("slider-media");
+
+					if (this.settings.enableVisualizer) {
+						new Visualizer(video, sliderContainer, {
+							color: this.settings.visualizerColor,
+							height: this.settings.visualizerHeight
+						});
+					}
+				} else if (/\.(mp3|ogg|wav|flac|webm|3gp||m4a)$/i.test(fileName)) {
+					const audio = mediaWrapper.createEl("audio", { attr: { src: filePath, controls: "true" } });
+					audio.classList.add("slider-media", "audio-media");
+
+					if (this.settings.enableVisualizer) {
+						new Visualizer(audio, sliderContainer, {
+							color: this.settings.visualizerColor,
+							height: this.settings.visualizerHeight
+						});
+					}
+				} else if (/\.(pdf)$/i.test(fileName)) {
+					// Create a container with CSS classes instead of inline styles
+					const pdfContainer = mediaWrapper.createEl("div", { cls: "pdf-container" });
+					
+					// Create the iframe with proper attributes and CSS classes
+					const iframe = pdfContainer.createEl("iframe", {
+						attr: { 
+							src: filePath, 
+							width: "100%", 
+							height: "100%",
+							frameborder: "0",
+							allowfullscreen: "true"
+						}
+					});
+					
+					iframe.classList.add("slider-media", "pdf-media");
+					
+					// The media-wrapper CSS class will be automatically targeted by the CSS selector
+				} else if (/\.(md)$/i.test(fileName)) {
+					const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
+					if (abstractFile && (abstractFile as any) instanceof TFile) {
+						const content = await this.getMarkdownContent(fileName);
+						mediaWrapper.empty();
+						mediaWrapper.style.display = "block";
+						await MarkdownRenderer.render(this.app, content, mediaWrapper, abstractFile.path, this);
+					}
+				} else if (this.isYouTubeURL(fileName)) {
+					const embedUrl = this.getYouTubeEmbedURL(fileName);
+					const iframe = mediaWrapper.createEl("iframe", {
+						attr: {
+							src: embedUrl,
+							frameborder: "0",
+							allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture",
+							allowfullscreen: "true",
+							width: "100%",
+							height: "100%"
+						}
+					});
+					iframe.classList.add("slider-media");
+				} else {
+					const link = mediaWrapper.createEl("a", {
+						text: "Open File",
+						attr: { href: filePath, target: "_blank" }
+					});
+					link.classList.add("slider-media");
+				}
+
+				if (caption) {
+					if (settings.captionMode === "overlay") {
+						const capEl = mediaWrapper.createEl("div", { text: caption });
+						capEl.classList.add("slider-caption-overlay");
+					} else {
+						const capEl = captionContainer.createEl("div", { text: caption });
+						capEl.classList.add("slider-caption");
 					}
 				}
+			}
 
-				if (settings.interactiveNotes && notesTextarea) {
-					const mediaKey = `${sliderId}-${files[currentIndex]}`;
-					notesTextarea.value = this.notesManager.getNote(mediaKey);
-				}
+			// Force a reflow
+			void mediaWrapper.offsetWidth;
 
-				if (this.settings.enableDrawingAnnotation) {
-					const mediaKey = `${sliderId}-${files[currentIndex]}`;
-					updateDrawingOverlay?.(mediaKey);
-				}
+			// Remove transition-out class and add transition-in class
+			mediaWrapper.classList.remove(
+				"transition-fade-out", "transition-slide-next-out", "transition-slide-prev-out", "transition-zoom-out",
+				"transition-slide-up-out", "transition-slide-down-out", "transition-flip-out", "transition-flip-vertical-out",
+				"transition-rotate-out", "transition-blur-out", "transition-squeeze-out"
+			);
 
-				void mediaWrapper.offsetWidth;
-				mediaWrapper.classList.remove(
-					"transition-fade-out", "transition-slide-next-out", "transition-slide-prev-out", "transition-zoom-out",
-					"transition-slide-up-out", "transition-slide-down-out", "transition-flip-out", "transition-flip-vertical-out",
-					"transition-rotate-out", "transition-blur-out", "transition-squeeze-out"
-				);
+			// Add transition-in class
+			switch (settings.transitionEffect) {
+				case "fade":
+					mediaWrapper.classList.add("transition-fade-in");
+					break;
+				case "slide":
+					mediaWrapper.classList.add(currentDirection === "next" ? "transition-slide-next-in" : "transition-slide-prev-in");
+					break;
+				case "zoom":
+					mediaWrapper.classList.add("transition-zoom-in");
+					break;
+				case "slide-up":
+					mediaWrapper.classList.add("transition-slide-up-in");
+					break;
+				case "slide-down":
+					mediaWrapper.classList.add("transition-slide-down-in");
+					break;
+				case "flip":
+					mediaWrapper.classList.add("transition-flip-in");
+					break;
+				case "flip-vertical":
+					mediaWrapper.classList.add("transition-flip-vertical-in");
+					break;
+				case "rotate":
+					mediaWrapper.classList.add("transition-rotate-in");
+					break;
+				case "blur":
+					mediaWrapper.classList.add("transition-blur-in");
+					break;
+				case "squeeze":
+					mediaWrapper.classList.add("transition-squeeze-in");
+					break;
+				default:
+					mediaWrapper.classList.add("transition-fade-in");
+			}
 
-				switch (settings.transitionEffect) {
-					case "fade":
-						mediaWrapper.classList.add("transition-fade-in");
-						break;
-					case "slide":
-						mediaWrapper.classList.add(currentDirection === "next" ? "transition-slide-next-in" : "transition-slide-prev-in");
-						break;
-					case "zoom":
-						mediaWrapper.classList.add("transition-zoom-in");
-						break;
-					case "slide-up":
-						mediaWrapper.classList.add("transition-slide-up-in");
-						break;
-					case "slide-down":
-						mediaWrapper.classList.add("transition-slide-down-in");
-						break;
-					case "flip":
-						mediaWrapper.classList.add("transition-flip-in");
-						break;
-					case "flip-vertical":
-						mediaWrapper.classList.add("transition-flip-vertical-in");
-						break;
-					case "rotate":
-						mediaWrapper.classList.add("transition-rotate-in");
-						break;
-					case "blur":
-						mediaWrapper.classList.add("transition-blur-in");
-						break;
-					case "squeeze":
-						mediaWrapper.classList.add("transition-squeeze-in");
-						break;
-					default:
-						mediaWrapper.classList.add("transition-fade-in");
-				}
-			}, settings.transitionDuration);
+			// Update notes if enabled
+			if (settings.interactiveNotes && notesTextarea) {
+				const mediaKey = `${sliderId}-${files[currentIndex]}`;
+				notesTextarea.value = this.notesManager.getNote(mediaKey);
+			}
+
+			// Update drawing overlay if enabled
+			if (this.settings.enableDrawingAnnotation) {
+				const mediaKey = `${sliderId}-${files[currentIndex]}`;
+				updateDrawingOverlay?.(mediaKey);
+			}
 		};
 
 		const throttledUpdate = this.throttle(updateMediaDisplay, 100);
@@ -1110,78 +1157,33 @@ export default class MediaSliderPlugin extends Plugin {
 			throttledUpdate();
 		};
 
-		const prevBtn = sliderContent.createEl("button", { text: "⮜", cls: "slider-btn prev" });
-		const nextBtn = sliderContent.createEl("button", { text: "⮞", cls: "slider-btn next" });
+		// Create navigation buttons using Obsidian's setIcon API
+		const prevBtn = sliderContent.createEl("button", { cls: "slider-btn prev" });
+		const nextBtn = sliderContent.createEl("button", { cls: "slider-btn next" });
+		
+		// Use Obsidian's setIcon API for consistent icons
+		setIcon(prevBtn, "chevron-left");
+		setIcon(nextBtn, "chevron-right");
+		
 		prevBtn.onclick = goPrev;
 		nextBtn.onclick = goNext;
+
+		// Add touch event handlers for mobile
+		prevBtn.addEventListener("touchstart", (e) => {
+			e.preventDefault();
+			goPrev();
+		}, { passive: false });
+		
+		nextBtn.addEventListener("touchstart", (e) => {
+			e.preventDefault();
+			goNext();
+		}, { passive: false });
 
 		sliderContent.tabIndex = 0;
 		// Make this slider the active one on focus
 		sliderContent.addEventListener("focus", () => {
 		    this.activeSliderContent = sliderContent;
 		});
-
-		// Update keyboard event handling
-		if (!this.keydownHandlerInitialized) {
-		    document.addEventListener("keydown", (evt: KeyboardEvent) => {
-		        // Only handle keyboard events if we have an active slider and the event target is not an input element
-		        const target = evt.target as EventTarget | null;
-		        if (this.activeSliderContent && target && target instanceof HTMLElement) {
-		            const tag = target.tagName.toLowerCase();
-		            if (tag !== 'input' && tag !== 'textarea') {
-		                if (evt.key === "ArrowLeft") {
-		                    const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
-		                    if (sliderWrapper) {
-		                        const prevBtn = sliderWrapper.querySelector(".slider-btn.prev") as HTMLElement;
-		                        if (prevBtn) {
-		                            prevBtn.click();
-		                            evt.preventDefault();
-		                        }
-		                    }
-		                } else if (evt.key === "ArrowRight") {
-		                    const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
-		                    if (sliderWrapper) {
-		                        const nextBtn = sliderWrapper.querySelector(".slider-btn.next") as HTMLElement;
-		                        if (nextBtn) {
-		                            nextBtn.click();
-		                            evt.preventDefault();
-		                        }
-		                    }
-		                }
-		            }
-		        }
-		    });
-		
-		    // Update click handling to be less aggressive
-		    document.addEventListener("click", (evt: MouseEvent) => {
-		        const target = evt.target as HTMLElement;
-		        if (!target) return;
-		        
-		        const clickedSlider = target.closest(".slider-content");
-		        if (clickedSlider && !target.matches('input, textarea')) {
-		            this.activeSliderContent = clickedSlider as HTMLElement;
-		        }
-		    });
-		
-		    this.keydownHandlerInitialized = true;
-		}		
-
-		// Update slider-specific key handler
-		sliderContent.addEventListener("keydown", (evt: KeyboardEvent) => {
-		    const target = evt.target as EventTarget | null;
-		    if (target && target instanceof HTMLElement) {
-		        const tag = target.tagName.toLowerCase();
-		        if (tag !== 'input' && tag !== 'textarea') {
-		            if (evt.key === "ArrowLeft") {
-		                goPrev();
-		                evt.preventDefault();
-		            } else if (evt.key === "ArrowRight") {
-		                goNext();
-		                evt.preventDefault();
-		            }
-		        }
-		    }
-		});		
 
 		// Update wheel handler to be less aggressive
 		sliderContent.addEventListener("wheel", (evt: WheelEvent) => {
@@ -1326,15 +1328,6 @@ export default class MediaSliderPlugin extends Plugin {
 						throttledUpdate();
 					};
 					
-					thumbEl.addEventListener("keydown", (evt: KeyboardEvent) => {
-						// Add keyboard shortcuts for thumbnails
-						if (evt.key === "Enter" || evt.key === " ") {
-							currentIndex = index;
-							throttledUpdate();
-							evt.preventDefault();
-						}
-					});
-					
 					thumbnailEls.push(thumbEl);
 				}
 			});
@@ -1363,279 +1356,300 @@ export default class MediaSliderPlugin extends Plugin {
 
 		container.appendChild(sliderWrapper);
 
+		// Restore the global document keydown handler for keyboard navigation
+		if (!this.keydownHandlerInitialized) {
+			document.addEventListener("keydown", (evt: KeyboardEvent) => {
+				// Only handle keyboard events if we have an active slider and the event target is not an input element
+				const target = evt.target as EventTarget | null;
+				if (this.activeSliderContent && target && target instanceof HTMLElement) {
+					const tag = target.tagName.toLowerCase();
+					if (tag !== 'input' && tag !== 'textarea') {
+						if (evt.key === "ArrowLeft") {
+							const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
+							if (sliderWrapper) {
+								const prevBtn = sliderWrapper.querySelector(".slider-btn.prev") as HTMLElement;
+								if (prevBtn) {
+									prevBtn.click();
+									evt.preventDefault();
+								}
+							}
+						} else if (evt.key === "ArrowRight") {
+							const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
+							if (sliderWrapper) {
+								const nextBtn = sliderWrapper.querySelector(".slider-btn.next") as HTMLElement;
+								if (nextBtn) {
+									nextBtn.click();
+									evt.preventDefault();
+								}
+							}
+						}
+					}
+				}
+			});
 
+			document.addEventListener("click", (evt: MouseEvent) => {
+				const target = evt.target as HTMLElement;
+				if (!target) return;
+				const clickedSlider = target.closest(".slider-content");
+				if (clickedSlider && !target.matches('input, textarea')) {
+					this.activeSliderContent = clickedSlider as HTMLElement;
+				}
+			});
+
+			this.keydownHandlerInitialized = true;
+		}
 	}
 
 	private addZoomPanSupport(img: HTMLImageElement, container: HTMLElement): void {
-	    // State variables for zoom and pan
-	    let scale = 1;
-	    let translateX = 0;
-	    let translateY = 0;
-	    let isDragging = false;
-	    let startX = 0;
-	    let startY = 0;
-	    let initialScale = 1;
-	
-	    const minScale = 1;
-	    const maxScale = 5;
-	
-	    // Add zoom controls container
-	    const zoomControls = container.createEl("div", { cls: "zoom-controls" });
-	
-	    // Add zoom in button
-	    const zoomInBtn = zoomControls.createEl("button", { text: "🔍+", cls: "zoom-btn" });
-	
-	    // Add zoom out button
-	    const zoomOutBtn = zoomControls.createEl("button", { text: "🔍-", cls: "zoom-btn" });
-	
-	    // Add reset button
-	    const resetBtn = zoomControls.createEl("button", { text: "↺", cls: "zoom-btn" });
-	
-	    // Add CSS classes for cursor
-	    img.classList.add("can-zoom");
-	
-	    // Helper function to apply transform
-	    const applyTransform = () => {
-	        img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
-	        img.classList.add("img-transformed");
-		
-	        if (isDragging) {
-	            img.classList.add("dragging");
-	        } else {
-	            img.classList.remove("dragging");
-	        }
-		
-	        // Show/hide zoom controls based on zoom state
-	        zoomControls.style.opacity = scale > 1 ? "1" : "0.5";
-	        zoomOutBtn.disabled = scale <= minScale;
-	        resetBtn.disabled = scale <= minScale && translateX === 0 && translateY === 0;
-		
-	        // Update cursor classes
-	        if (scale > 1) {
-	            img.classList.add("zoomed");
-	        } else {
-	            img.classList.remove("zoomed");
-	        }
-	    };
-	
-	    // Helper function to handle zoom
-	    const zoom = (delta: number, centerX: number, centerY: number) => {
-	        // Capture original dimensions and position
-	        const rect = img.getBoundingClientRect();
-	        const imgCenterX = rect.left + rect.width / 2;
-	        const imgCenterY = rect.top + rect.height / 2;
-		
-	        // Calculate offset from center
-	        const offsetX = centerX - imgCenterX;
-	        const offsetY = centerY - imgCenterY;
-		
-	        // Calculate old scale and new scale
-	        const oldScale = scale;
-	        scale = Math.max(minScale, Math.min(maxScale, scale + delta));
-		
-	        // Only apply zoom if scale changed
-	        if (scale !== oldScale) {
-	            // Adjust translation to zoom toward cursor position
-	            if (delta > 0) {
-	                translateX -= offsetX * (scale / oldScale - 1);
-	                translateY -= offsetY * (scale / oldScale - 1);
-	            } else {
-	                // When zooming out, gradually move back to center
-	                translateX = translateX * (scale / oldScale);
-	                translateY = translateY * (scale / oldScale);
-	            }
+		// State variables for zoom and pan
+		let scale = 1;
+		let translateX = 0;
+		let translateY = 0;
+		let isDragging = false;
+		let startX = 0;
+		let startY = 0;
+		let initialScale = 1;
+
+		const minScale = 1;
+		const maxScale = 5;
+
+		// Remove any existing zoom controls first
+		const existingControls = container.querySelector(".zoom-controls");
+		if (existingControls) {
+			existingControls.remove();
+		}
+
+		// Create new zoom controls
+		const zoomControls = container.createEl("div", { cls: "zoom-controls" });
+
+		// Add zoom in button
+		const zoomInBtn = zoomControls.createEl("button", { cls: "zoom-btn" });
+		setIcon(zoomInBtn, "zoom-in");
+
+		// Add zoom out button
+		const zoomOutBtn = zoomControls.createEl("button", { cls: "zoom-btn" });
+		setIcon(zoomOutBtn, "zoom-out");
+
+		// Add reset button
+		const resetBtn = zoomControls.createEl("button", { cls: "zoom-btn" });
+		setIcon(resetBtn, "refresh-cw");
+
+		// Add CSS classes for cursor
+		img.classList.add("can-zoom");
+
+		// Double click zoom handler
+		img.addEventListener("dblclick", (e: MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
 			
-	            applyTransform();
-	            return true;
-	        }
-	        return false;
-	    };
-	
-	    // Reset function
-	    const resetZoomPan = () => {
-	        scale = 1;
-	        translateX = 0;
-	        translateY = 0;
-	        applyTransform();
-	    };
-	
-	    // Button event handlers
-	    zoomInBtn.addEventListener("click", (e) => {
-	        e.stopPropagation();
-	        const rect = container.getBoundingClientRect();
-	        zoom(0.5, rect.left + rect.width / 2, rect.top + rect.height / 2);
-	    });
-	
-	    zoomOutBtn.addEventListener("click", (e) => {
-	        e.stopPropagation();
-	        const rect = container.getBoundingClientRect();
-	        zoom(-0.5, rect.left + rect.width / 2, rect.top + rect.height / 2);
-	    });
-	
-	    resetBtn.addEventListener("click", (e) => {
-	        e.stopPropagation();
-	        resetZoomPan();
-	    });
-	
-	    // Mouse wheel zoom handler
-	    container.addEventListener("wheel", (e: WheelEvent) => {
-	        // Check if ctrl key is pressed for zoom, otherwise let the slider's wheel handler work
-	        if (e.ctrlKey || e.metaKey) {
-	            e.preventDefault();
-	            const delta = e.deltaY < 0 ? 0.2 : -0.2;
-	            zoom(delta, e.clientX, e.clientY);
-	        }
-	    }, { passive: false });
-	
-	    // Pan handlers (mouse)
-	    img.addEventListener("mousedown", (e: MouseEvent) => {
-	        if (scale > 1) {
-	            isDragging = true;
-	            startX = e.clientX - translateX;
-	            startY = e.clientY - translateY;
-	            e.preventDefault();
-	        }
-	    });
-	
-	    document.addEventListener("mousemove", (e: MouseEvent) => {
-	        if (isDragging) {
-	            translateX = e.clientX - startX;
-	            translateY = e.clientY - startY;
-	            applyTransform();
-	            e.preventDefault();
-	        }
-	    });
-	
-	    document.addEventListener("mouseup", () => {
-	        isDragging = false;
-	        applyTransform(); // Update classes
-	    });
-	
-	    // Touch handlers for mobile
-	    img.addEventListener("touchstart", (e: TouchEvent) => {
-	        if (e.touches.length === 1 && scale > 1) {
-	            isDragging = true;
-	            startX = e.touches[0].clientX - translateX;
-	            startY = e.touches[0].clientY - translateY;
-	            e.preventDefault();
-	        } else if (e.touches.length === 2) {
-	            // Handle pinch zoom
-	            e.preventDefault();
-	            const touch1 = e.touches[0];
-	            const touch2 = e.touches[1];
-	            initialScale = scale;
-	            startX = (touch1.clientX + touch2.clientX) / 2;
-	            startY = (touch1.clientY + touch2.clientY) / 2;
-	        }
-	    }, { passive: false });
-	
-	    img.addEventListener("touchmove", (e: TouchEvent) => {
-	        if (e.touches.length === 1 && isDragging) {
-	            translateX = e.touches[0].clientX - startX;
-	            translateY = e.touches[0].clientY - startY;
-	            applyTransform();
-	            e.preventDefault();
-	        } else if (e.touches.length === 2) {
-	            // Handle pinch zoom
-	            e.preventDefault();
-	            const touch1 = e.touches[0];
-	            const touch2 = e.touches[1];
+			if (scale > 1) {
+				// If already zoomed, reset to normal
+				resetZoomPan();
+			} else {
+				// Zoom in on double click
+				const rect = img.getBoundingClientRect();
+				
+				// Get click position relative to the image
+				const clickX = e.clientX - rect.left;
+				const clickY = e.clientY - rect.top;
+				
+				// Calculate the zoom center as a percentage of the image size
+				const centerX = clickX / rect.width;
+				const centerY = clickY / rect.height;
+				
+				// Set zoom level to 1.25x
+				scale = 1.25;
+				
+				// Calculate the translation to center the zoom on the click point
+				// The translation is negative because we want to move the image in the opposite direction
+				translateX = -(centerX * rect.width * (scale - 1));
+				translateY = -(centerY * rect.height * (scale - 1));
+				
+				applyTransform();
+			}
+		});
+
+		// Helper function to apply transform
+		const applyTransform = () => {
+			img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+			img.classList.add("img-transformed");
+		
+			if (isDragging) {
+				img.classList.add("dragging");
+			} else {
+				img.classList.remove("dragging");
+			}
+		
+			// Show/hide zoom controls based on zoom state
+			zoomControls.style.opacity = scale > 1 ? "1" : "0.5";
+			zoomOutBtn.disabled = scale <= minScale;
+			resetBtn.disabled = scale <= minScale && translateX === 0 && translateY === 0;
+		
+			// Update cursor classes
+			if (scale > 1) {
+				img.classList.add("zoomed");
+			} else {
+				img.classList.remove("zoomed");
+			}
+		};
+
+		// Helper function to handle zoom
+		const zoom = (delta: number, centerX: number, centerY: number) => {
+			// Capture original dimensions and position
+			const rect = img.getBoundingClientRect();
+			const imgCenterX = rect.left + rect.width / 2;
+			const imgCenterY = rect.top + rect.height / 2;
+		
+			// Calculate offset from center
+			const offsetX = centerX - imgCenterX;
+			const offsetY = centerY - imgCenterY;
+		
+			// Calculate old scale and new scale
+			const oldScale = scale;
+			scale = Math.max(minScale, Math.min(maxScale, scale + delta));
+		
+			// Only apply zoom if scale changed
+			if (scale !== oldScale) {
+				// Adjust translation to zoom toward cursor position
+				if (delta > 0) {
+					translateX -= offsetX * (scale / oldScale - 1);
+					translateY -= offsetY * (scale / oldScale - 1);
+				} else {
+					// When zooming out, gradually move back to center
+					translateX = translateX * (scale / oldScale);
+					translateY = translateY * (scale / oldScale);
+				}
 			
-	            // Calculate distance between fingers
-	            const currentDistance = Math.hypot(
-	                touch1.clientX - touch2.clientX,
-	                touch1.clientY - touch2.clientY
-	            );
+				applyTransform();
+				return true;
+			}
+			return false;
+		};
+
+		// Reset function
+		const resetZoomPan = () => {
+			scale = 1;
+			translateX = 0;
+			translateY = 0;
+			applyTransform();
+		};
+
+		// Button event handlers
+		zoomInBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const rect = container.getBoundingClientRect();
+			zoom(0.5, rect.left + rect.width / 2, rect.top + rect.height / 2);
+		});
+
+		zoomOutBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const rect = container.getBoundingClientRect();
+			zoom(-0.5, rect.left + rect.width / 2, rect.top + rect.height / 2);
+		});
+
+		resetBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			resetZoomPan();
+		});
+
+		// Mouse wheel zoom handler
+		container.addEventListener("wheel", (e: WheelEvent) => {
+			// Check if ctrl key is pressed for zoom
+			if (e.ctrlKey || e.metaKey) {
+				e.preventDefault();
+				e.stopPropagation();
+				const delta = e.deltaY < 0 ? 0.2 : -0.2;
+				const rect = container.getBoundingClientRect();
+				zoom(delta, e.clientX - rect.left, e.clientY - rect.top);
+			}
+		}, { passive: false });
+
+		// Pan handlers (mouse)
+		img.addEventListener("mousedown", (e: MouseEvent) => {
+			if (scale > 1) {
+				isDragging = true;
+				startX = e.clientX - translateX;
+				startY = e.clientY - translateY;
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		});
+
+		document.addEventListener("mousemove", (e: MouseEvent) => {
+			if (isDragging) {
+				translateX = e.clientX - startX;
+				translateY = e.clientY - startY;
+				applyTransform();
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		});
+
+		document.addEventListener("mouseup", (e: MouseEvent) => {
+			if (isDragging) {
+				isDragging = false;
+				applyTransform();
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		});
+
+		// Touch handlers for mobile
+		img.addEventListener("touchstart", (e: TouchEvent) => {
+			if (e.touches.length === 1 && scale > 1) {
+				isDragging = true;
+				startX = e.touches[0].clientX - translateX;
+				startY = e.touches[0].clientY - translateY;
+				e.preventDefault();
+			} else if (e.touches.length === 2) {
+				// Handle pinch zoom
+				e.preventDefault();
+				const touch1 = e.touches[0];
+				const touch2 = e.touches[1];
+				initialScale = scale;
+				startX = (touch1.clientX + touch2.clientX) / 2;
+				startY = (touch1.clientY + touch2.clientY) / 2;
+			}
+		}, { passive: false });
+
+		img.addEventListener("touchmove", (e: TouchEvent) => {
+			if (e.touches.length === 1 && isDragging) {
+				translateX = e.touches[0].clientX - startX;
+				translateY = e.touches[0].clientY - startY;
+				applyTransform();
+				e.preventDefault();
+			} else if (e.touches.length === 2) {
+				// Handle pinch zoom
+				e.preventDefault();
+				const touch1 = e.touches[0];
+				const touch2 = e.touches[1];
 			
-	            const centerX = (touch1.clientX + touch2.clientX) / 2;
-	            const centerY = (touch1.clientY + touch2.clientY) / 2;
+				// Calculate distance between fingers
+				const currentDistance = Math.hypot(
+					touch1.clientX - touch2.clientX,
+					touch1.clientY - touch2.clientY
+				);
 			
-	            // Calculate new scale based on finger distance change
-	            const newScale = Math.max(minScale, Math.min(maxScale, initialScale * (currentDistance / 150)));
+				const centerX = (touch1.clientX + touch2.clientX) / 2;
+				const centerY = (touch1.clientY + touch2.clientY) / 2;
 			
-	            if (newScale !== scale) {
-	                scale = newScale;
-	                applyTransform();
-	            }
-	        }
-	    }, { passive: false });
-	
-	    img.addEventListener("touchend", () => {
-	        isDragging = false;
-	        applyTransform(); // Update classes
-	    });
-	
-	    // Keyboard zoom and pan
-	    container.addEventListener("keydown", (e: KeyboardEvent) => {
-	        // Make sure this isn't intercepted for navigation
-	        if (e.ctrlKey || e.metaKey || e.altKey) {
-	            const rect = container.getBoundingClientRect();
-	            const centerX = rect.left + rect.width / 2;
-	            const centerY = rect.top + rect.height / 2;
+				// Calculate new scale based on finger distance change
+				const newScale = Math.max(minScale, Math.min(maxScale, initialScale * (currentDistance / 150)));
 			
-	            switch (e.key) {
-	                case "=":
-	                case "+":
-	                    if (e.ctrlKey || e.metaKey) {
-	                        e.preventDefault();
-	                        zoom(0.2, centerX, centerY);
-	                    }
-	                    break;
-	                case "-":
-	                    if (e.ctrlKey || e.metaKey) {
-	                        e.preventDefault();
-	                        zoom(-0.2, centerX, centerY);
-	                    }
-	                    break;
-	                case "0":
-	                    if (e.ctrlKey || e.metaKey) {
-	                        e.preventDefault();
-	                        resetZoomPan();
-	                    }
-	                    break;
-	                case "ArrowUp":
-	                    if (scale > 1 && (e.ctrlKey || e.altKey)) {
-	                        e.preventDefault();
-	                        translateY += 20;
-	                        applyTransform();
-	                    }
-	                    break;
-	                case "ArrowDown":
-	                    if (scale > 1 && (e.ctrlKey || e.altKey)) {
-	                        e.preventDefault();
-	                        translateY -= 20;
-	                        applyTransform();
-	                    }
-	                    break;
-	                case "ArrowLeft":
-	                    if (scale > 1 && (e.ctrlKey || e.altKey)) {
-	                        e.preventDefault();
-	                        translateX += 20;
-	                        applyTransform();
-	                    }
-	                    break;
-	                case "ArrowRight":
-	                    if (scale > 1 && (e.ctrlKey || e.altKey)) {
-	                        e.preventDefault();
-	                        translateX -= 20;
-	                        applyTransform();
-	                    }
-	                    break;
-	            }
-	        }
-	    });
-	
-	    // Double-click to zoom in/out
-	    img.addEventListener("dblclick", (e: MouseEvent) => {
-	        if (scale > 1) {
-	            resetZoomPan();
-	        } else {
-	            zoom(1, e.clientX, e.clientY);
-	        }
-	    });
-	
-	    // Initial setup
-	    applyTransform();
+				if (newScale !== scale) {
+					scale = newScale;
+					applyTransform();
+				}
+			}
+		}, { passive: false });
+
+		img.addEventListener("touchend", () => {
+			isDragging = false;
+			applyTransform(); // Update classes
+		});
+
+		// Initial setup
+		applyTransform();
 	}
 }
 

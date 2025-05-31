@@ -1,6 +1,8 @@
 // drawing.ts
 export type DrawingTool = "freehand" | "line" | "rectangle" | "circle" | "eraser" | "laser";
 
+import { setIcon } from "obsidian";
+
 export class DrawingAnnotation {
 	private container: HTMLElement;
 	private canvas: HTMLCanvasElement;
@@ -66,7 +68,8 @@ export class DrawingAnnotation {
 	private createToolbar(): void {
 		// Freehand button.
 		const freehandBtn = document.createElement("button");
-		freehandBtn.textContent = "✏️";
+		freehandBtn.textContent = "";
+		setIcon(freehandBtn, "pencil");
 		freehandBtn.title = "Freehand";
 		freehandBtn.classList.add("drawing-btn", "freehand-btn");
 		freehandBtn.onclick = () => {
@@ -82,7 +85,8 @@ export class DrawingAnnotation {
 
 		// Geometric tool buttons (inline)
 		const lineBtn = document.createElement("button");
-		lineBtn.textContent = "➖";
+		lineBtn.textContent = "";
+		setIcon(lineBtn, "slash");
 		lineBtn.title = "Line";
 		lineBtn.classList.add("drawing-btn", "line-btn");
 		lineBtn.onclick = () => {
@@ -98,7 +102,8 @@ export class DrawingAnnotation {
 		this.toolbar.appendChild(lineBtn);
 
 		const rectBtn = document.createElement("button");
-		rectBtn.textContent = "▭";
+		rectBtn.textContent = "";
+		setIcon(rectBtn, "square");
 		rectBtn.title = "Rectangle";
 		rectBtn.classList.add("drawing-btn", "rect-btn");
 		rectBtn.onclick = () => {
@@ -114,7 +119,8 @@ export class DrawingAnnotation {
 		this.toolbar.appendChild(rectBtn);
 
 		const circleBtn = document.createElement("button");
-		circleBtn.textContent = "◯";
+		circleBtn.textContent = "";
+		setIcon(circleBtn, "circle");
 		circleBtn.title = "Circle";
 		circleBtn.classList.add("drawing-btn", "circle-btn");
 		circleBtn.onclick = () => {
@@ -131,7 +137,8 @@ export class DrawingAnnotation {
 
 		// Eraser button.
 		const eraserBtn = document.createElement("button");
-		eraserBtn.textContent = "🧽";
+		eraserBtn.textContent = "";
+		setIcon(eraserBtn, "eraser");
 		eraserBtn.title = "Eraser";
 		eraserBtn.classList.add("drawing-btn", "eraser-btn");
 		eraserBtn.onclick = () => {
@@ -147,7 +154,8 @@ export class DrawingAnnotation {
 
 		// Laser button.
 		const laserBtn = document.createElement("button");
-		laserBtn.textContent = "🔦";
+		laserBtn.textContent = "";
+		setIcon(laserBtn, "activity");
 		laserBtn.title = "Laser (temporary)";
 		laserBtn.classList.add("drawing-btn", "laser-btn");
 		laserBtn.onclick = () => {
