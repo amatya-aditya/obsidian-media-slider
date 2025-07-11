@@ -74,37 +74,41 @@ The plugin is available through Obsidian as a community plugin.
 # Usuage
 
 ## 📸 Basic Image Slider
+````markdown
 ```media-slider
 ![[image1.png]]
 ![[image2.png]]
 ![[image3.png]]
 ```
+````
 
 ## 🎥 Mixed Media Support
 
-```markdown
+````markdown
 ```media-slider
 ![[image1.png]]
 ![[video1.mp4]]
 ![[audio1.mp3]]
 ![](https://…/zoom-pan.gif)
 ```
+````
 
 Supports images, videos, audio, and external URLs.
 
 ## 🏷️ Captions
 
-```markdown
+````markdown
 ```media-slider
 ![[image1.png|A beautiful sunrise]]
 ![[image2.png|A calm lake]]
 ```
+````
 
 Add captions to your images using the `|caption` syntax.
 
 ## 🆚 Compare Mode (Simple)
 
-```markdown
+````markdown
 ```media-slider
 ---
 compareMode: true
@@ -112,13 +116,14 @@ compareMode: true
 ![[before.png||1-1]]
 ![[after.png||1-2]]
 ```
+````
 Compare two images side by side.
 
 ---
 
 ## 🆚 Compare Mode (Custom Options)
 
-```markdown
+````markdown
 ```media-slider
 ---
 compareMode: true
@@ -133,12 +138,13 @@ label2: "After"
 ![[before2.png||2-1]]
 ![[after2.png||2-2]]
 ```
+````
 Customize compare mode orientation, labels, and divider position.
 
 
 ## 📂 Folder Support
 
-```markdown
+````markdown
 ```media-slider
 ---
 fileTypes:
@@ -152,12 +158,13 @@ recursive: true
 ---
 [[folder/subfolder/]]
 ```
+````
 Automatically include all supported media from a folder.
 
 
 ## 🖼️ Thumbnail Carousel
 
-```markdown
+````markdown
 ```media-slider
 ---
 carouselShowThumbnails: true
@@ -167,12 +174,13 @@ thumbnailPosition: bottom #right,left, top
 ![[image2.png]]
 ![[image3.png]]
 ```
+````
 Enable and position the thumbnail carousel.
 
 
 ## ✨ Transition Effects
 
-```markdown
+````markdown
 ```media-slider
 ---
 transitionEffect: slide
@@ -181,25 +189,27 @@ transitionDuration: 500
 ![[image1.png]]
 ![[image2.png]]
 ```
+````
 Choose from fade, slide, zoom, flip, etc.
 
 
 ## 🔍 Zoom & Pan
 
-```markdown
+````markdown
 ```media-slider
 ---
 enhancedView: true
 ---
 ![[image1.png]]
 ```
+````
 Enable zoom and pan controls for images.
 
 ---
 
 ## 📝 Interactive Notes
 
-```markdown
+````markdown
 ```media-slider
 ---
 interactiveNotes: true
@@ -207,6 +217,7 @@ interactiveNotes: true
 ![[image1.png]]
 ![[image2.png]]
 ```
+````
 Add and save notes for each slide.
 
 
@@ -220,7 +231,7 @@ Enable in plugin settings. When enabled, a drawing button appears on images for 
 
 For advanced users, you can combine multiple options:
 
-```markdown
+````markdown
 ```media-slider
 ---
 sliderId: my-slider
@@ -254,7 +265,7 @@ compareMode: true
 ![[compare1.png||1-1]]
 ![[compare2.png||1-2]]
 ```
-
+````
 ---
 
 **Tip:**  
