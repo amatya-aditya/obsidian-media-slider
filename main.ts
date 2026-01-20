@@ -1,8 +1,8 @@
-import { Plugin, PluginSettingTab, App, Setting, MarkdownPostProcessorContext, TFile, MarkdownRenderer, MarkdownView, parseYaml, setIcon } from "obsidian";
+import { Plugin, PluginSettingTab, App, Setting, MarkdownPostProcessorContext, TFile, TAbstractFile, MarkdownRenderer, MarkdownView, parseYaml, setIcon } from "obsidian";
 import { compressImage } from "./src/compression";
 import { NotesManager } from "./src/notes";
 import { DrawingAnnotation } from "./src/drawing";
-import { Visualizer, VisualizerOptions } from "./src/visualizer";
+import { Visualizer } from "./src/visualizer";
 import { CompareMode, CompareOptions } from "./src/compareMode";
 
 interface MediaSliderSettings {
@@ -12,7 +12,40 @@ interface MediaSliderSettings {
 	visualizerHeight: string;
 	compressionQuality: number;
 	enableCompression: boolean;
-	enableCompareMode: boolean; 
+	enableCompareMode: boolean;
+	showControlsOnHover: boolean;
+	thumbnailsCollapsedByDefault: boolean;
+	showCopyButton: boolean;
+	showThumbnailToggle: boolean;
+}
+
+interface CompareModeSettings {
+	enabled: boolean;
+	orientation: "horizontal" | "vertical";
+	initialPosition: number;
+	showLabels: boolean;
+	label1: string;
+	label2: string;
+	swapImages: boolean;
+}
+
+interface SliderSettings {
+	sliderId: string;
+	carouselShowThumbnails: boolean;
+	thumbnailPosition: string;
+	captionMode: string;
+	autoplay: boolean;
+	slideshowSpeed: number;
+	width: string;
+	height: string;
+	transitionEffect: string;
+	transitionDuration: number;
+	enhancedView: boolean;
+	interactiveNotes: boolean;
+	fileTypes: string[] | null;
+	recursive: boolean;
+	compression: boolean | number | string | null;
+	compareMode: CompareModeSettings;
 }
 
 const DEFAULT_SETTINGS: MediaSliderSettings = {
@@ -22,7 +55,11 @@ const DEFAULT_SETTINGS: MediaSliderSettings = {
 	visualizerHeight: "50px",
 	compressionQuality: 1,
 	enableCompression: true,
-	enableCompareMode: true 
+	enableCompareMode: true,
+	showControlsOnHover: false,
+	thumbnailsCollapsedByDefault: false,
+	showCopyButton: false,
+	showThumbnailToggle: true
 };
 
 
@@ -124,13 +161,13 @@ export default class MediaSliderPlugin extends Plugin {
 			
 			try {
 				return decodeURIComponent(fileName);
-			} catch (e) {
+			} catch {
 				return fileName;
 			}
 		}
 
 		
-		let file = this.app.vault.getAbstractFileByPath(fileName);
+		const file = this.app.vault.getAbstractFileByPath(fileName);
 		if (!file) {
 			const matchingFiles = this.app.vault.getFiles().filter(
 				f => f.name.toLowerCase() === fileName.toLowerCase()
@@ -183,9 +220,9 @@ export default class MediaSliderPlugin extends Plugin {
 		}
 	}
 
-	private throttle<T extends (...args: any[]) => any>(fn: T, delay: number): T {
+	private throttle<T extends (...args: unknown[]) => unknown>(fn: T, delay: number): T {
 		let lastCall = 0;
-		return ((...args: any[]) => {
+		return ((...args: unknown[]) => {
 			const now = Date.now();
 			if (now - lastCall < delay) return;
 			lastCall = now;
@@ -193,99 +230,7 @@ export default class MediaSliderPlugin extends Plugin {
 		}) as T;
 	}
 
-	private async generateUniqueFileName(baseName: string, folderPath: string): Promise<string> {
-		let uniqueName = baseName;
-		let counter = 1;
-		while (await this.app.vault.adapter.exists(`${folderPath}/${uniqueName}`)) {
-			const extIndex = baseName.lastIndexOf(".");
-			const nameWithoutExt = extIndex !== -1 ? baseName.slice(0, extIndex) : baseName;
-			const ext = extIndex !== -1 ? baseName.slice(extIndex) : "";
-			uniqueName = `${nameWithoutExt}-${counter}${ext}`;
-			counter++;
-		}
-		return uniqueName;
-	}
-
-	private async insertImageToCodeBlock(ctx: MarkdownPostProcessorContext, fileName: string, insertAfterIndex: number): Promise<void> {
-		const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
-		if (!file) {
-			console.warn("Could not find file for this code block. (ctx.sourcePath:", ctx.sourcePath, ")");
-			return;
-		}
-		
-		const fileContent = await this.app.vault.read(file);
-		
-		
-		const codeBlockMatch = fileContent.match(/(```media-slider[\s\S]+?```)/);
-		if (!codeBlockMatch) {
-			console.log("No media-slider code block found.");
-			return;
-		}
-		
-		const codeBlock = codeBlockMatch[1];
-		
-		
-		const lines = codeBlock.split('\n');
-		
-		
-		const contentLines = lines.slice(1, -1);
-		
-		
-		
-		const yamlStartIndex = contentLines.findIndex(line => line.trim() === '---');
-		let contentStartIndex = 0;
-		
-		if (yamlStartIndex !== -1) {
-			
-			const yamlEndIndex = contentLines.slice(yamlStartIndex + 1).findIndex(line => line.trim() === '---');
-			if (yamlEndIndex !== -1) {
-				contentStartIndex = yamlStartIndex + yamlEndIndex + 2; 
-			}
-		}
-		
-		
-		const actualInsertIndex = contentStartIndex + insertAfterIndex + 1; 
-		
-		
-		contentLines.splice(actualInsertIndex, 0, `![[${fileName}]]`);
-		
-		
-		lines[0] = '```media-slider';
-		for (let i = 0; i < contentLines.length; i++) {
-			lines[i + 1] = contentLines[i];
-		}
-		lines[contentLines.length + 1] = '```';
-		
-		const updatedCodeBlock = lines.join('\n');
-		
-		
-		const updatedContent = fileContent.replace(codeBlockMatch[0], updatedCodeBlock);
-		
-		
-		await this.app.vault.modify(file, updatedContent);
-	}
-
-	private async appendImageToCodeBlock(ctx: MarkdownPostProcessorContext, fileName: string): Promise<void> {
-		const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
-		if (!file) {
-			console.warn("Could not find file for this code block. (ctx.sourcePath:", ctx.sourcePath, ")");
-			return;
-		}
-		const fileContent = await this.app.vault.read(file);
-		const updatedContent = fileContent.replace(
-			/(```media-slider[\s\S]+?```)/,
-			(match) => {
-				return match.replace(/```$/, `![[${fileName}]]\n\`\`\``);
-			}
-		);
-		if (updatedContent === fileContent) {
-			console.log("No media-slider code block replaced. Possibly none found or multiple blocks exist.");
-			return;
-		}
-		await this.app.vault.modify(file, updatedContent);
-	}
-
-	private async getFolderMedia(folderPath: string, settings: any): Promise<string[]> {
+	private async getFolderMedia(folderPath: string, settings: SliderSettings): Promise<string[]> {
 		const folder = this.app.vault.getAbstractFileByPath(folderPath);
 		if (!folder || !("children" in folder)) {
 			console.error("Folder not found or not a folder:", folderPath);
@@ -310,21 +255,19 @@ export default class MediaSliderPlugin extends Plugin {
 		
 		const recursive = settings.recursive !== false; 
 		
-		const collectMediaFiles = (file: any) => {
-			if (file.children) {
-				
-				if (file === folder || recursive) {
-					file.children.forEach(collectMediaFiles);
+		const collectMediaFiles = (abstractFile: TAbstractFile) => {
+			if ('children' in abstractFile && Array.isArray(abstractFile.children)) {
+				if (abstractFile === folder || recursive) {
+					abstractFile.children.forEach((child: TAbstractFile) => collectMediaFiles(child));
 				}
-			} else if ("extension" in file) {
-				
-				if (fileTypeFilters.includes(file.extension.toLowerCase())) {
-					mediaFiles.push(file.path);
+			} else if (abstractFile instanceof TFile) {
+				if (fileTypeFilters.includes(abstractFile.extension.toLowerCase())) {
+					mediaFiles.push(abstractFile.path);
 				}
 			}
 		};
-		
-		collectMediaFiles(folder);
+
+		collectMediaFiles(folder as TAbstractFile);
 		
 		
 		return mediaFiles.sort();
@@ -409,7 +352,7 @@ export default class MediaSliderPlugin extends Plugin {
 		const mediaLines = mediaContent.split("\n").map(line => line.trim()).filter(Boolean);
 
 		
-		let settings: any = {
+		let settings: SliderSettings = {
 			sliderId: "",
 			carouselShowThumbnails: true,
 			thumbnailPosition: "bottom",
@@ -422,10 +365,10 @@ export default class MediaSliderPlugin extends Plugin {
 			transitionDuration: 0.1,
 			enhancedView: true,
 			interactiveNotes: false,
-			fileTypes: null, 
-			recursive: false, 
-			compression: null, 
-			compareMode: {  
+			fileTypes: null,
+			recursive: false,
+			compression: null,
+			compareMode: {
 				enabled: this.settings.enableCompareMode,
 				orientation: "vertical",
 				initialPosition: 50,
@@ -438,28 +381,40 @@ export default class MediaSliderPlugin extends Plugin {
 
 		if (metadataMatch) {
 			try {
-				const parsedSettings = parseYaml(metadataMatch[1]);
-				settings = Object.assign({}, settings, parsedSettings);
-                
-                
-                if (parsedSettings.compareMode !== undefined) {
-                    if (typeof parsedSettings.compareMode === 'boolean') {
-                        
-                        
-                        const compareModeDefaults = Object.assign({}, settings.compareMode, { enabled: parsedSettings.compareMode });
-                        
-                        const compareModeKeys = ['orientation', 'initialPosition', 'showLabels', 'label1', 'label2', 'swapImages'];
-                        for (const key of compareModeKeys) {
-                            if (parsedSettings[key] !== undefined) {
-                                compareModeDefaults[key] = parsedSettings[key];
-                            }
-                        }
-                        settings.compareMode = compareModeDefaults;
-                    } else if (typeof parsedSettings.compareMode === 'object') {
-                        
-                        settings.compareMode = Object.assign({}, settings.compareMode, parsedSettings.compareMode);
-                    }
-                }
+				const parsedSettings = parseYaml(metadataMatch[1]) as Record<string, unknown>;
+				settings = Object.assign({}, settings, parsedSettings) as SliderSettings;
+
+				if (parsedSettings.compareMode !== undefined) {
+					if (typeof parsedSettings.compareMode === 'boolean') {
+						const compareModeDefaults: CompareModeSettings = {
+							...settings.compareMode,
+							enabled: parsedSettings.compareMode
+						};
+
+						// Apply individual compare mode settings if provided at top level
+						if (parsedSettings.orientation !== undefined) {
+							compareModeDefaults.orientation = parsedSettings.orientation as "horizontal" | "vertical";
+						}
+						if (parsedSettings.initialPosition !== undefined) {
+							compareModeDefaults.initialPosition = parsedSettings.initialPosition as number;
+						}
+						if (parsedSettings.showLabels !== undefined) {
+							compareModeDefaults.showLabels = parsedSettings.showLabels as boolean;
+						}
+						if (parsedSettings.label1 !== undefined) {
+							compareModeDefaults.label1 = parsedSettings.label1 as string;
+						}
+						if (parsedSettings.label2 !== undefined) {
+							compareModeDefaults.label2 = parsedSettings.label2 as string;
+						}
+						if (parsedSettings.swapImages !== undefined) {
+							compareModeDefaults.swapImages = parsedSettings.swapImages as boolean;
+						}
+						settings.compareMode = compareModeDefaults;
+					} else if (typeof parsedSettings.compareMode === 'object') {
+						settings.compareMode = Object.assign({}, settings.compareMode, parsedSettings.compareMode);
+					}
+				}
 			} catch (error) {
 				console.error("Failed to parse media-slider metadata:", error);
 			}
@@ -559,7 +514,7 @@ export default class MediaSliderPlugin extends Plugin {
 	private renderSlider(
 		container: HTMLElement,
 		files: string[],
-		settings: any,
+		settings: SliderSettings,
 		sliderId: string,
 		ctx: MarkdownPostProcessorContext,
 		compareGroups: Map<string, { files: { path: string; caption: string | null }[]; processed: boolean }> = new Map()
@@ -571,6 +526,11 @@ export default class MediaSliderPlugin extends Plugin {
 
 		let updateDrawingOverlay: ((mediaKey: string) => void) | undefined;
 		const sliderWrapper = container.createDiv("media-slider-wrapper");
+
+		// Add hover-only controls class if enabled
+		if (this.settings.showControlsOnHover) {
+			sliderWrapper.classList.add("ms-controls-on-hover");
+		}
 
 		
 		if (
@@ -588,24 +548,77 @@ export default class MediaSliderPlugin extends Plugin {
 		sliderContent.style.setProperty('--transition-duration', settings.transitionDuration + 'ms');
 
 		const sliderContainer = sliderContent.createDiv("slider-container");
-		let mediaWrapper = sliderContainer.createDiv("media-wrapper");
+		const mediaWrapper = sliderContainer.createDiv("media-wrapper");
 		const captionContainer = sliderContent.createDiv("slider-caption-container");
 
 		let thumbnailContainer: HTMLElement | null = null;
-		let thumbnailEls: HTMLElement[] = [];
+		const thumbnailEls: HTMLElement[] = [];
+		let thumbnailSection: HTMLElement | null = null;
 
 		if (settings.carouselShowThumbnails) {
+			// Create a wrapper for the thumbnail section (toggle button + thumbnails)
+			thumbnailSection = document.createElement("div");
+			thumbnailSection.classList.add("ms-thumbnail-section");
+
+			// Determine orientation
+			const isVertical = settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right";
+			if (isVertical) {
+				thumbnailSection.classList.add("ms-vertical");
+			} else {
+				thumbnailSection.classList.add("ms-horizontal");
+			}
+
+			// Create thumbnail container
 			thumbnailContainer = document.createElement("div");
 			thumbnailContainer.classList.add("thumbnail-container");
-			if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
+			if (isVertical) {
 				thumbnailContainer.classList.add("vertical");
 			} else {
 				thumbnailContainer.classList.add("horizontal");
 			}
+
+			// Create the toggle button only if enabled
+			let thumbnailToggleBtn: HTMLElement | null = null;
+			if (this.settings.showThumbnailToggle) {
+				thumbnailToggleBtn = document.createElement("button");
+				thumbnailToggleBtn.classList.add("ms-thumbnail-toggle-btn");
+				if (isVertical) {
+					thumbnailToggleBtn.classList.add("ms-vertical");
+				}
+				setIcon(thumbnailToggleBtn, isVertical ? "chevron-left" : "chevron-down");
+
+				// Check if should start collapsed
+				if (this.settings.thumbnailsCollapsedByDefault) {
+					thumbnailContainer.classList.add("ms-collapsed");
+					setIcon(thumbnailToggleBtn, isVertical ? "chevron-right" : "chevron-up");
+				}
+
+				// Toggle button click handler
+				thumbnailToggleBtn.onclick = () => {
+					if (thumbnailContainer && thumbnailToggleBtn) {
+						const isCollapsed = thumbnailContainer.classList.toggle("ms-collapsed");
+						if (isVertical) {
+							setIcon(thumbnailToggleBtn, isCollapsed ? "chevron-right" : "chevron-left");
+						} else {
+							setIcon(thumbnailToggleBtn, isCollapsed ? "chevron-up" : "chevron-down");
+						}
+					}
+				};
+			}
+
+			// Add elements to thumbnail section
 			if (settings.thumbnailPosition === "top" || settings.thumbnailPosition === "left") {
-				sliderWrapper.insertBefore(thumbnailContainer, sliderContent);
+				thumbnailSection.appendChild(thumbnailContainer);
+				if (thumbnailToggleBtn) {
+					thumbnailSection.appendChild(thumbnailToggleBtn);
+				}
+				sliderWrapper.insertBefore(thumbnailSection, sliderContent);
 			} else {
-				sliderWrapper.appendChild(thumbnailContainer);
+				if (thumbnailToggleBtn) {
+					thumbnailSection.appendChild(thumbnailToggleBtn);
+				}
+				thumbnailSection.appendChild(thumbnailContainer);
+				sliderWrapper.appendChild(thumbnailSection);
 			}
 		}
 
@@ -629,23 +642,25 @@ export default class MediaSliderPlugin extends Plugin {
 				}
 			};
 
-			const copyBtn = sliderWrapper.createEl("button", { cls: "copy-btn" });
-			setIcon(copyBtn, "copy");
-			copyBtn.onclick = async () => {
-				const currentEntry = files[currentIndex];
-				
-				
-				if (currentEntry.startsWith('__COMPARE_GROUP_')) return;
-				
-				let [fileName] = currentEntry.split("|").map(s => s.trim());
-				const markdownLink = `![[${fileName}]]`;
-				try {
-					await navigator.clipboard.writeText(markdownLink);
-					console.log("Copied markdown link to clipboard:", markdownLink);
-				} catch (err) {
-					console.error("Failed to copy markdown link:", err);
-				}
-			};
+			if (this.settings.showCopyButton) {
+				const copyBtn = sliderWrapper.createEl("button", { cls: "copy-btn" });
+				setIcon(copyBtn, "copy");
+				copyBtn.onclick = async () => {
+					const currentEntry = files[currentIndex];
+
+
+					if (currentEntry.startsWith('__COMPARE_GROUP_')) return;
+
+					const [fileName] = currentEntry.split("|").map(s => s.trim());
+					const markdownLink = `![[${fileName}]]`;
+					try {
+						await navigator.clipboard.writeText(markdownLink);
+						console.log("Copied markdown link to clipboard:", markdownLink);
+					} catch (err) {
+						console.error("Failed to copy markdown link:", err);
+					}
+				};
+			}
 		}
 
 		
@@ -945,8 +960,9 @@ export default class MediaSliderPlugin extends Plugin {
 					mediaWrapper.createEl("div", { text: errorMessage });
 				}
 			} else {
-				
-				let [fileName, caption] = currentEntry.split("|").map(s => s.trim());
+				const parts = currentEntry.split("|").map(s => s.trim());
+				let fileName = parts[0];
+				const caption = parts[1];
 				if (!fileName.includes(".")) {
 					const mdFile = this.app.metadataCache.getFirstLinkpathDest(fileName, "");
 					if (mdFile && mdFile.extension === "md") {
@@ -1047,7 +1063,7 @@ export default class MediaSliderPlugin extends Plugin {
 					
 				} else if (/\.(md)$/i.test(fileName)) {
 					const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
-					if (abstractFile && (abstractFile as any) instanceof TFile) {
+					if (abstractFile instanceof TFile) {
 						const content = await this.getMarkdownContent(fileName);
 						mediaWrapper.empty();
 						mediaWrapper.style.display = "block";
@@ -1211,7 +1227,13 @@ export default class MediaSliderPlugin extends Plugin {
 		sliderContent.addEventListener("touchend", (evt: TouchEvent) => {
 			const touchEndX = evt.changedTouches[0].clientX;
 			const diff = touchStartX - touchEndX;
-			if (Math.abs(diff) > 50) diff > 0 ? goNext() : goPrev();
+			if (Math.abs(diff) > 50) {
+				if (diff > 0) {
+					goNext();
+				} else {
+					goPrev();
+				}
+			}
 		});
 
 		
@@ -1245,26 +1267,25 @@ export default class MediaSliderPlugin extends Plugin {
 								const isImage2 = /\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(file2.path);
 								
 								if (isImage1 && isImage2) {
-									
 									const thumbContainer = thumbEl.createEl("div", { cls: "compare-thumb-container" });
-									
-									
-									const leftImg = thumbContainer.createEl("img", { 
+
+									// Create left image (side effect: appends to DOM)
+									void thumbContainer.createEl("img", {
 										attr: { src: img1Path },
 										cls: "compare-thumb-left"
 									});
-									
-									
-									const rightImg = thumbContainer.createEl("img", { 
+
+									// Create right image (side effect: appends to DOM)
+									void thumbContainer.createEl("img", {
 										attr: { src: img2Path },
 										cls: "compare-thumb-right"
 									});
-									
-									
-									const divider = thumbContainer.createEl("div", { cls: "compare-thumb-divider" });
-									
-									
-									const compareIcon = thumbEl.createEl("div", { 
+
+									// Create divider (side effect: appends to DOM)
+									void thumbContainer.createEl("div", { cls: "compare-thumb-divider" });
+
+									// Create compare icon (side effect: appends to DOM)
+									void thumbEl.createEl("div", {
 										text: "⟷",
 										cls: "compare-thumb-icon"
 									});
@@ -1298,8 +1319,7 @@ export default class MediaSliderPlugin extends Plugin {
 						thumbnailEls.push(thumbEl);
 					}
 				} else {
-					
-					let [fileName] = entry.split("|").map(s => s.trim());
+					const [fileName] = entry.split("|").map(s => s.trim());
 					let thumbEl: HTMLElement;
 					
 					if (this.isYouTubeURL(fileName)) {
@@ -1359,11 +1379,10 @@ export default class MediaSliderPlugin extends Plugin {
 
 		
 		const checkNoteActive = () => {
-			const activeLeaf = this.app.workspace.activeLeaf;
-			const shouldBeActive = !!(activeLeaf && 
-				activeLeaf.view instanceof MarkdownView && 
-				activeLeaf.view.file && 
-				activeLeaf.view.file.path === ctx.sourcePath);
+			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+			const shouldBeActive = !!(activeView &&
+				activeView.file &&
+				activeView.file.path === ctx.sourcePath);
 			
 			const wasActive = isNoteActive;
 			isNoteActive = shouldBeActive;
@@ -1704,16 +1723,12 @@ export default class MediaSliderPlugin extends Plugin {
 				const touch1 = e.touches[0];
 				const touch2 = e.touches[1];
 			
-				
+	
 				const currentDistance = Math.hypot(
 					touch1.clientX - touch2.clientX,
 					touch1.clientY - touch2.clientY
 				);
-			
-				const centerX = (touch1.clientX + touch2.clientX) / 2;
-				const centerY = (touch1.clientY + touch2.clientY) / 2;
-			
-				
+
 				const newScale = Math.max(minScale, Math.min(maxScale, initialScale * (currentDistance / 150)));
 			
 				if (newScale !== scale) {
@@ -1735,6 +1750,14 @@ export default class MediaSliderPlugin extends Plugin {
 
 class MediaSliderSettingTab extends PluginSettingTab {
 	plugin: MediaSliderPlugin;
+	private currentTab = "UI & Controls";
+	private tabNames = [
+		"UI & Controls",
+		"Thumbnails",
+		"Image Processing",
+		"Annotations",
+		"Visualizer"
+	];
 
 	constructor(app: App, plugin: MediaSliderPlugin) {
 		super(app, plugin);
@@ -1745,9 +1768,147 @@ class MediaSliderSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
+		// Create tab bar
+		const tabBar = containerEl.createDiv("ms-settings-tab-bar");
+		this.tabNames.forEach(tab => {
+			const tabBtn = tabBar.createEl("button", {
+				text: tab,
+				cls: "ms-settings-tab-btn" + (this.currentTab === tab ? " active" : "")
+			});
+			tabBtn.onclick = () => {
+				this.currentTab = tab;
+				this.display();
+			};
+		});
+
+		// Create tab content container
+		const tabContent = containerEl.createDiv("ms-settings-tab-content");
+
+		switch (this.currentTab) {
+			case "UI & Controls":
+				this.createUIControlsSettings(tabContent);
+				break;
+			case "Thumbnails":
+				this.createThumbnailSettings(tabContent);
+				break;
+			case "Image Processing":
+				this.createImageProcessingSettings(tabContent);
+				break;
+			case "Annotations":
+				this.createAnnotationSettings(tabContent);
+				break;
+			case "Visualizer":
+				this.createVisualizerSettings(tabContent);
+				break;
+		}
+	}
+
+	private createUIControlsSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("Show controls on hover only")
+			.setDesc("Hide navigation arrows and control buttons until you hover over the slider.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showControlsOnHover)
+				.onChange(async (value) => {
+					this.plugin.settings.showControlsOnHover = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSliders();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Show copy button")
+			.setDesc("Show the copy button that copies the current image's markdown link to clipboard.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showCopyButton)
+				.onChange(async (value) => {
+					this.plugin.settings.showCopyButton = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSliders();
+				})
+			);
+
+		this.addSupportSection(containerEl);
+	}
+
+	private createThumbnailSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("Show thumbnail toggle button")
+			.setDesc("Show the arrow button to collapse/expand the thumbnail strip.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showThumbnailToggle)
+				.onChange(async (value) => {
+					this.plugin.settings.showThumbnailToggle = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSliders();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Collapse thumbnails by default")
+			.setDesc("Start with the thumbnail strip collapsed. Requires toggle button to be enabled.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.thumbnailsCollapsedByDefault)
+				.onChange(async (value) => {
+					this.plugin.settings.thumbnailsCollapsedByDefault = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSliders();
+				})
+			);
+
+		this.addSupportSection(containerEl);
+	}
+
+	private createImageProcessingSettings(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("Enable image compression")
+			.setDesc("Compress images for better performance. Can be overridden per slider in YAML.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableCompression)
+				.onChange(async (value) => {
+					this.plugin.settings.enableCompression = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSliders();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Compression quality")
+			.setDesc("Image compression quality (0 to 1, e.g., 0.7 for 70% quality).")
+			.addText(text => text
+				.setPlaceholder("0.7")
+				.setValue(String(this.plugin.settings.compressionQuality))
+				.onChange(async (value) => {
+					const parsed = parseFloat(value);
+					if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
+						this.plugin.settings.compressionQuality = parsed;
+						await this.plugin.saveSettings();
+						this.plugin.refreshSliders();
+					} else {
+						console.warn("Please enter a number between 0 and 1.");
+					}
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Enable compare mode")
+			.setDesc("Enable image comparison feature. Can be configured per slider in YAML.")
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.enableCompareMode)
+				.onChange(async (value) => {
+					this.plugin.settings.enableCompareMode = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSliders();
+				})
+			);
+
+		this.addSupportSection(containerEl);
+	}
+
+	private createAnnotationSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
 			.setName("Enable drawing annotation")
-			.setDesc("Toggle to enable drawing annotations on the slider. (default: off)")
+			.setDesc("Allow drawing annotations on slider images.")
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.enableDrawingAnnotation)
 				.onChange(async (value) => {
@@ -1757,9 +1918,13 @@ class MediaSliderSettingTab extends PluginSettingTab {
 				})
 			);
 
+		this.addSupportSection(containerEl);
+	}
+
+	private createVisualizerSettings(containerEl: HTMLElement): void {
 		new Setting(containerEl)
 			.setName("Enable visualizer")
-			.setDesc("Toggle to enable wave-like visualization for audio/video playback.")
+			.setDesc("Show wave-like visualization for audio/video playback.")
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.enableVisualizer)
 				.onChange(async (value) => {
@@ -1793,49 +1958,22 @@ class MediaSliderSettingTab extends PluginSettingTab {
 				})
 			);
 
-		
-		new Setting(containerEl)
-			.setName("Enable image compression")
-			.setDesc("Toggle to enable/disable image compression globally. Can be overridden per slider in YAML.")
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.enableCompression)
-				.onChange(async (value) => {
-					this.plugin.settings.enableCompression = value;
-					await this.plugin.saveSettings();
-					this.plugin.refreshSliders();
-				})
-			);
+		this.addSupportSection(containerEl);
+	}
 
-		
-		new Setting(containerEl)
-			.setName("Compression quality")
-			.setDesc("Set the image compression quality (0 to 1, e.g., 0.7 for 70% quality).")
-			.addText(text => text
-				.setPlaceholder("0.7")
-				.setValue(String(this.plugin.settings.compressionQuality))
-				.onChange(async (value) => {
-					const parsed = parseFloat(value);
-					if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
-						this.plugin.settings.compressionQuality = parsed;
-						await this.plugin.saveSettings();
-						this.plugin.refreshSliders();
-					} else {
-						console.warn("Please enter a number between 0 and 1.");
-					}
-				})
-			);
-            
-        
-        new Setting(containerEl)
-            .setName("Enable compare mode")
-            .setDesc("Toggle to enable image comparison feature globally. Can be configured per slider in YAML.")
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.enableCompareMode)
-                .onChange(async (value) => {
-                    this.plugin.settings.enableCompareMode = value;
-                    await this.plugin.saveSettings();
-                    this.plugin.refreshSliders();
-                })
-            );
+	private addSupportSection(containerEl: HTMLElement): void {
+		const supportDiv = containerEl.createDiv("ms-settings-support");
+		supportDiv.createEl("span", { text: "Enjoy this plugin? " });
+		const kofiLink = supportDiv.createEl("a", {
+			text: "❤ Ko-fi",
+			href: "https://ko-fi.com/Y8Y41FV4WI"
+		});
+		kofiLink.setAttr("target", "_blank");
+		supportDiv.createEl("span", { text: " · " });
+		const bmcLink = supportDiv.createEl("a", {
+			text: "Buy me a coffee",
+			href: "https://www.buymeacoffee.com/amatya_aditya"
+		});
+		bmcLink.setAttr("target", "_blank");
 	}
 }

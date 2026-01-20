@@ -1,3 +1,24 @@
+/* Hide border/box-shadow on media-slider code blocks only */
+.cm-embed-block.cm-lang-media-slider {
+	border: none !important;
+	box-shadow: none !important;
+}
+
+.cm-embed-block.cm-lang-media-slider:hover {
+	border: none !important;
+	box-shadow: none !important;
+}
+
+.block-language-media-slider {
+	border: none !important;
+	box-shadow: none !important;
+}
+
+.block-language-media-slider:hover {
+	border: none !important;
+	box-shadow: none !important;
+}
+
 .media-slider-wrapper {
 	position: relative;
 	width: 100%;
@@ -1075,4 +1096,211 @@ img.slider-media {
 .slider-btn.prev { top: 50%; left: 10px; transform: translateY(-50%); }
 .slider-btn.next { top: 50%; right: 10px; transform: translateY(-50%); }
 
+
+/* --- Show Controls on Hover Only --- */
+.media-slider-wrapper.ms-controls-on-hover .slider-btn,
+.media-slider-wrapper.ms-controls-on-hover .fullscreen-btn,
+.media-slider-wrapper.ms-controls-on-hover .copy-btn,
+.media-slider-wrapper.ms-controls-on-hover .notes-toggle-btn,
+.media-slider-wrapper.ms-controls-on-hover .drawing-toggle-btn,
+.media-slider-wrapper.ms-controls-on-hover .clear-drawing-btn,
+.media-slider-wrapper.ms-controls-on-hover .zoom-controls,
+.media-slider-wrapper.ms-controls-on-hover .zoom-controls .zoom-btn {
+	opacity: 0;
+	transition: opacity 0.2s ease-in-out;
+}
+
+.media-slider-wrapper.ms-controls-on-hover:hover .slider-btn,
+.media-slider-wrapper.ms-controls-on-hover:hover .fullscreen-btn,
+.media-slider-wrapper.ms-controls-on-hover:hover .copy-btn,
+.media-slider-wrapper.ms-controls-on-hover:hover .notes-toggle-btn,
+.media-slider-wrapper.ms-controls-on-hover:hover .drawing-toggle-btn,
+.media-slider-wrapper.ms-controls-on-hover:hover .clear-drawing-btn,
+.media-slider-wrapper.ms-controls-on-hover:hover .zoom-controls,
+.media-slider-wrapper.ms-controls-on-hover:hover .zoom-controls .zoom-btn {
+	opacity: 0.7;
+}
+
+.media-slider-wrapper.ms-controls-on-hover:hover .slider-btn:hover,
+.media-slider-wrapper.ms-controls-on-hover:hover .fullscreen-btn:hover,
+.media-slider-wrapper.ms-controls-on-hover:hover .copy-btn:hover,
+.media-slider-wrapper.ms-controls-on-hover:hover .notes-toggle-btn:hover,
+.media-slider-wrapper.ms-controls-on-hover:hover .drawing-toggle-btn:hover,
+.media-slider-wrapper.ms-controls-on-hover:hover .clear-drawing-btn:hover,
+.media-slider-wrapper.ms-controls-on-hover:hover .zoom-btn:hover {
+	opacity: 1;
+}
+
+
+/* --- Collapsible Thumbnail Section --- */
+.media-slider-wrapper .ms-thumbnail-section {
+	display: flex;
+	align-items: center;
+}
+
+.media-slider-wrapper .ms-thumbnail-section.ms-horizontal {
+	flex-direction: column;
+	width: 100%;
+}
+
+.media-slider-wrapper .ms-thumbnail-section.ms-vertical {
+	flex-direction: row;
+	width: auto;
+	flex-shrink: 0;
+}
+
+/* When using flex-row (vertical thumbnails), slider-content should take remaining space */
+.media-slider-wrapper.flex-row .slider-content {
+	flex: 1;
+	min-width: 0;
+}
+
+.media-slider-wrapper .ms-thumbnail-toggle-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	border-radius: 4px;
+	opacity: 0.7;
+	transition: opacity 0.2s ease, background 0.2s ease;
+	z-index: 10;
+	box-shadow: none;
+}
+
+.media-slider-wrapper .ms-thumbnail-toggle-btn:hover {
+	opacity: 1;
+	background: rgba(0, 0, 0, 0.6);
+}
+
+/* Horizontal toggle button (for top/bottom thumbnails) */
+.media-slider-wrapper .ms-thumbnail-section.ms-horizontal .ms-thumbnail-toggle-btn {
+	width: 50px;
+	height: 20px;
+	border-radius: 0 0 4px 4px;
+	margin-top: -2px;
+}
+
+.media-slider-wrapper .ms-thumbnail-section.ms-horizontal .ms-thumbnail-toggle-btn svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* Vertical toggle button (for left/right thumbnails) */
+.media-slider-wrapper .ms-thumbnail-toggle-btn.ms-vertical {
+	width: 20px;
+	height: 100%;
+	min-height: 70px;
+	border-radius: 4px 0 0 4px;
+	margin-right: -2px;
+}
+
+.media-slider-wrapper .ms-thumbnail-toggle-btn.ms-vertical svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Collapsed state for horizontal thumbnails */
+.media-slider-wrapper .thumbnail-container.horizontal.ms-collapsed {
+	max-height: 0;
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+	opacity: 0;
+	transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
+}
+
+.media-slider-wrapper .thumbnail-container.horizontal:not(.ms-collapsed) {
+	max-height: 200px;
+	opacity: 1;
+	transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+
+/* Collapsed state for vertical thumbnails */
+.media-slider-wrapper .thumbnail-container.vertical.ms-collapsed {
+	max-width: 0;
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+	opacity: 0;
+	transition: max-width 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
+}
+
+.media-slider-wrapper .thumbnail-container.vertical:not(.ms-collapsed) {
+	max-width: 120px;
+	opacity: 1;
+	transition: max-width 0.3s ease, opacity 0.2s ease;
+}
+
+/* Adjust toggle button icon when thumbnails are at top */
+.media-slider-wrapper .ms-thumbnail-section.ms-horizontal:has(.thumbnail-container:first-child) .ms-thumbnail-toggle-btn {
+	border-radius: 4px 4px 0 0;
+	margin-top: 0;
+	margin-bottom: -2px;
+}
+
+/* Adjust toggle button for right-side thumbnails */
+.media-slider-wrapper .ms-thumbnail-section.ms-vertical:has(.thumbnail-container:last-child) .ms-thumbnail-toggle-btn {
+	border-radius: 0 4px 4px 0;
+	margin-right: 0;
+	margin-left: -2px;
+}
+
+
+/* --- Settings Tab Bar --- */
+.ms-settings-tab-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-bottom: 20px;
+	padding-bottom: 10px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.ms-settings-tab-btn {
+	padding: 8px 16px;
+	border: none;
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 500;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ms-settings-tab-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.ms-settings-tab-btn.active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.ms-settings-tab-content {
+	padding-top: 10px;
+}
+
+/* --- Settings Support Section --- */
+.ms-settings-support {
+	margin-top: 30px;
+	padding-top: 15px;
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: 12px;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.ms-settings-support a {
+	color: var(--text-accent);
+	text-decoration: none;
+}
+
+.ms-settings-support a:hover {
+	text-decoration: underline;
+}
 
