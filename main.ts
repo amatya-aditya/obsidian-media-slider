@@ -62,11 +62,20 @@ const DEFAULT_SETTINGS: MediaSliderSettings = {
 	showThumbnailToggle: true
 };
 
-
+enum MediaType {
+	IMAGE = "IMAGE",
+	VIDEO = "VIDEO",
+	AUDIO = "AUDIO",
+	PDF = "PDF",
+	MARKDOWN = "MARKDOWN",
+	YOUTUBE = "YOUTUBE",
+	UNKNOWN = "UNKNOWN"
+}
 
 export default class MediaSliderPlugin extends Plugin {
 	settings: MediaSliderSettings;
 	private filePathCache: Map<string, string> = new Map();
+	private mediaTypeCache: Map<string, MediaType> = new Map();
 	private markdownCache: Map<string, string> = new Map();
 	private notesManager: NotesManager;
 	private drawingData: { [key: string]: string } = {};
@@ -204,6 +213,112 @@ export default class MediaSliderPlugin extends Plugin {
 		}
 		return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 	}
+
+	/**
+	 * Detects the media type of a URL from its extension or, for remote URLs,
+	 * from the response Content-Type. Results are cached per URL.
+	 * @param url - The URL (file path or http(s)) to classify.
+	 * @returns The detected type {@link MediaType}.
+	 */
+	private async detectMediaType(url: string): Promise<MediaType> {
+        if (this.mediaTypeCache.has(url)) {
+            return this.mediaTypeCache.get(url)!;
+        }
+
+	    let mediaType: MediaType;
+        if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(url)) {
+			mediaType = MediaType.IMAGE;
+        } else if (/\.(mp4|webm|mkv|mov|ogv)$/i.test(url)) {
+            mediaType = MediaType.VIDEO;
+        } else if (/\.(mp3|ogg|wav|flac|webm|3gp|m4a)$/i.test(url)) {
+            mediaType = MediaType.AUDIO;
+        } else if (/\.(pdf)$/i.test(url)) {
+            mediaType = MediaType.PDF;
+        } else if (/\.(md)$/i.test(url)) {
+            mediaType = MediaType.MARKDOWN;
+        } else if (this.isYouTubeURL(url)) {
+            mediaType = MediaType.YOUTUBE;
+        } else if (url.startsWith('http://') || url.startsWith('https://')) {
+            mediaType = await this.detectMediaTypeViaRequestHeaders(url);
+        } else {
+            mediaType = MediaType.UNKNOWN;
+        }
+
+		this.mediaTypeCache.set(url, mediaType);
+		return mediaType;
+    }
+
+	/**
+	 * Fetches the media type of a remote URL by inspecting HTTP response headers.
+	 * Attempts a HEAD request first for efficiency, falling back to GET if HEAD
+	 * fails or returns no Content-Type. A 5s abort timeout guards against hangs.
+	 * @param url - The remote URL to probe.
+	 * @returns The detected {@link MediaType}, or {@link MediaType.UNKNOWN} on failure.
+	 */
+	private async detectMediaTypeViaRequestHeaders(url: string): Promise<MediaType> {
+		try {
+			const controller = new AbortController();
+			// Short timeout to avoid UI hanging
+			const maxRequestTimeAbortId = setTimeout(() => controller.abort(), 5000);
+
+			try {
+				// Try HEAD first as it's most efficient
+				const response = await fetch(url, {
+					method: 'HEAD',
+					signal: controller.signal,
+				});
+				
+				if (response.ok) {
+					const contentType = response.headers.get('Content-Type');
+					if (contentType) {
+						clearTimeout(maxRequestTimeAbortId);
+						const type = this.mapContentType(contentType);
+						this.mediaTypeCache.set(url, type);
+						return type;
+					}
+				}
+			} catch (headErr) {
+				// Ignore HEAD errors to try GET
+			}
+
+			// Fallback: GET request, but abort immediately after headers
+			const response = await fetch(url, {
+				method: 'GET',
+				signal: controller.signal,
+			});
+			clearTimeout(maxRequestTimeAbortId);
+
+			const contentType = response.headers.get('Content-Type');
+			// We have the headers, now abort the body download to save bandwidth
+			controller.abort();
+
+			if (contentType) {
+				const type = this.mapContentType(contentType);
+				this.mediaTypeCache.set(url, type);
+				return type;
+			}
+		} catch (e) {
+			// AbortError is expected if we cancel the download
+			if (e.name !== 'AbortError') {
+				console.warn(`[Media Slider] Failed to detect media type for ${url}:`, e);
+			}
+		}
+		return MediaType.UNKNOWN;
+	}
+
+	/**
+	 * Maps an HTTP Content-Type header value to a {@link MediaType}.
+	 * Uses MIME type prefixes (image/, video/, audio/) and exact match for application/pdf.
+	 * @param contentType - The Content-Type header value (e.g. "image/png", "video/mp4").
+	 * @returns The corresponding MediaType, or {@link MediaType.UNKNOWN} if unrecognized.
+	 */
+	private mapContentType(contentType: string): MediaType {
+        if (contentType.startsWith('image/')) return MediaType.IMAGE;
+        if (contentType.startsWith('video/')) return MediaType.VIDEO;
+        if (contentType.startsWith('audio/')) return MediaType.AUDIO;
+        if (contentType === 'application/pdf') return MediaType.PDF;
+        return MediaType.UNKNOWN;
+    }
 
 	private async getMarkdownContent(fileName: string): Promise<string> {
 		if (this.markdownCache.has(fileName)) {
@@ -990,39 +1105,35 @@ export default class MediaSliderPlugin extends Plugin {
 					? settings.compression
 					: this.settings.compressionQuality;
 
-				if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
+				const mediaType = await this.detectMediaType(filePath);
+
+				if (mediaType === MediaType.IMAGE) {
 					try {
-						if (/\.gif$/i.test(fileName)) {
-							
+						if (/\.gif$/i.test(fileName) || /\.gif$/i.test(filePath)) {
 							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
 							img.classList.add("slider-media", "gif-media");
 							this.addZoomPanSupport(img, sliderContainer);
-						}
-						
-						else if (/\.svg$/i.test(fileName)) {
+						} else if (/\.svg$/i.test(fileName) || /\.svg$/i.test(filePath)) {
 							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
 							img.classList.add("slider-media");
 							this.addZoomPanSupport(img, sliderContainer);
 						} else if (!useCompression) {
-							
 							const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
 							img.classList.add("slider-media");
 							this.addZoomPanSupport(img, sliderContainer);
 						} else {
-							
 							const compressedUrl = await compressImage(filePath, 1600, 1200, quality);
 							const img = mediaWrapper.createEl("img", { attr: { src: compressedUrl } });
 							img.classList.add("slider-media");
 							this.addZoomPanSupport(img, sliderContainer);
 						}
 					} catch (err) {
-						
 						console.error("Error processing image:", err);
 						const img = mediaWrapper.createEl("img", { attr: { src: filePath } });
 						img.classList.add("slider-media");
 						this.addZoomPanSupport(img, sliderContainer);
 					}
-				} else if (/\.(mp4|webm|mkv|mov|ogv)$/i.test(fileName)) {
+				} else if (mediaType === MediaType.VIDEO) {
 					const video = mediaWrapper.createEl("video", { attr: { src: filePath, controls: "true" } });
 					if (settings.autoplay) video.setAttribute("autoplay", "true");
 					video.classList.add("slider-media");
@@ -1033,7 +1144,7 @@ export default class MediaSliderPlugin extends Plugin {
 							height: this.settings.visualizerHeight
 						});
 					}
-				} else if (/\.(mp3|ogg|wav|flac|webm|3gp||m4a)$/i.test(fileName)) {
+				} else if (mediaType === MediaType.AUDIO) {
 					const audio = mediaWrapper.createEl("audio", { attr: { src: filePath, controls: "true" } });
 					audio.classList.add("slider-media", "audio-media");
 
@@ -1043,25 +1154,21 @@ export default class MediaSliderPlugin extends Plugin {
 							height: this.settings.visualizerHeight
 						});
 					}
-				} else if (/\.(pdf)$/i.test(fileName)) {
-					
+				} else if (mediaType === MediaType.PDF) {
 					const pdfContainer = mediaWrapper.createEl("div", { cls: "pdf-container" });
-					
-					
+
 					const iframe = pdfContainer.createEl("iframe", {
-						attr: { 
-							src: filePath, 
-							width: "100%", 
+						attr: {
+							src: filePath,
+							width: "100%",
 							height: "100%",
 							frameborder: "0",
 							allowfullscreen: "true"
 						}
 					});
-					
+
 					iframe.classList.add("slider-media", "pdf-media");
-					
-					
-				} else if (/\.(md)$/i.test(fileName)) {
+				} else if (mediaType === MediaType.MARKDOWN) {
 					const abstractFile = this.app.vault.getAbstractFileByPath(fileName);
 					if (abstractFile instanceof TFile) {
 						const content = await this.getMarkdownContent(fileName);
@@ -1069,7 +1176,7 @@ export default class MediaSliderPlugin extends Plugin {
 						mediaWrapper.style.display = "block";
 						await MarkdownRenderer.render(this.app, content, mediaWrapper, abstractFile.path, this);
 					}
-				} else if (this.isYouTubeURL(fileName)) {
+				} else if (mediaType === MediaType.YOUTUBE) {
 					const embedUrl = this.getYouTubeEmbedURL(fileName);
 					const iframe = mediaWrapper.createEl("iframe", {
 						attr: {
@@ -1239,120 +1346,125 @@ export default class MediaSliderPlugin extends Plugin {
 		
 		if (thumbnailContainer) {
 			thumbnailContainer.empty();
-			files.forEach((entry, index) => {
-				
-				if (entry.startsWith('__COMPARE_GROUP_')) {
-					const groupId = entry.replace('__COMPARE_GROUP_', '');
-					const group = compareGroups.get(groupId);
+			(async () => {
+				for (let index = 0; index < files.length; index++) {
+					const entry = files[index];
 					
-					if (group && group.files.length > 0) {
+					if (entry.startsWith('__COMPARE_GROUP_')) {
+						const groupId = entry.replace('__COMPARE_GROUP_', '');
+						const group = compareGroups.get(groupId);
 						
-						const thumbEl = thumbnailContainer!.createEl("div", { cls: "thumbnail compare-thumbnail" });
-						
-						
-						thumbEl.classList.add(settings.compareMode.orientation === "horizontal" ? 
-							"compare-horizontal" : "compare-vertical");
-						
-						
-						if (group.files.length >= 2) {
-							const file1 = group.files[0];
-							const file2 = group.files[1];
+						if (group && group.files.length > 0) {
 							
-							try {
-								const img1Path = this.getMediaSource(file1.path);
-								const img2Path = this.getMediaSource(file2.path);
+							const thumbEl = thumbnailContainer!.createEl("div", { cls: "thumbnail compare-thumbnail" });
+							
+							
+							thumbEl.classList.add(settings.compareMode.orientation === "horizontal" ? 
+								"compare-horizontal" : "compare-vertical");
+							
+							
+							if (group.files.length >= 2) {
+								const file1 = group.files[0];
+								const file2 = group.files[1];
 								
-								
-								const isImage1 = /\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(file1.path);
-								const isImage2 = /\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(file2.path);
-								
-								if (isImage1 && isImage2) {
-									const thumbContainer = thumbEl.createEl("div", { cls: "compare-thumb-container" });
-
-									// Create left image (side effect: appends to DOM)
-									void thumbContainer.createEl("img", {
-										attr: { src: img1Path },
-										cls: "compare-thumb-left"
-									});
-
-									// Create right image (side effect: appends to DOM)
-									void thumbContainer.createEl("img", {
-										attr: { src: img2Path },
-										cls: "compare-thumb-right"
-									});
-
-									// Create divider (side effect: appends to DOM)
-									void thumbContainer.createEl("div", { cls: "compare-thumb-divider" });
-
-									// Create compare icon (side effect: appends to DOM)
-									void thumbEl.createEl("div", {
-										text: "⟷",
-										cls: "compare-thumb-icon"
-									});
-								} else {
+								try {
+									const img1Path = this.getMediaSource(file1.path);
+									const img2Path = this.getMediaSource(file2.path);
 									
-									thumbEl.textContent = "COMP";
+									
+									const isImage1 = /\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(file1.path);
+									const isImage2 = /\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(file2.path);
+									
+									if (isImage1 && isImage2) {
+										const thumbContainer = thumbEl.createEl("div", { cls: "compare-thumb-container" });
+	
+										// Create left image (side effect: appends to DOM)
+										void thumbContainer.createEl("img", {
+											attr: { src: img1Path },
+											cls: "compare-thumb-left"
+										});
+	
+										// Create right image (side effect: appends to DOM)
+										void thumbContainer.createEl("img", {
+											attr: { src: img2Path },
+											cls: "compare-thumb-right"
+										});
+	
+										// Create divider (side effect: appends to DOM)
+										void thumbContainer.createEl("div", { cls: "compare-thumb-divider" });
+	
+										// Create compare icon (side effect: appends to DOM)
+										void thumbEl.createEl("div", {
+											text: "⟷",
+											cls: "compare-thumb-icon"
+										});
+									} else {
+										
+										thumbEl.textContent = "COMP";
+										thumbEl.classList.add("thumbnail-placeholder");
+									}
+								} catch (error) {
+									console.error("Error creating compare thumbnail:", error);
+									thumbEl.textContent = "ERR";
 									thumbEl.classList.add("thumbnail-placeholder");
 								}
-							} catch (error) {
-								console.error("Error creating compare thumbnail:", error);
-								thumbEl.textContent = "ERR";
+							} else {
+								
+								thumbEl.textContent = "CMP";
 								thumbEl.classList.add("thumbnail-placeholder");
 							}
-						} else {
 							
-							thumbEl.textContent = "CMP";
-							thumbEl.classList.add("thumbnail-placeholder");
+							
+							if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
+								thumbEl.classList.add("vertical-thumb");
+							}
+							
+							
+							thumbEl.onclick = () => {
+								currentIndex = index;
+								throttledUpdate();
+							};
+							
+							thumbnailEls.push(thumbEl);
 						}
-						
-						
-						if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
-							thumbEl.classList.add("vertical-thumb");
-						}
-						
-						
-						thumbEl.onclick = () => {
-							currentIndex = index;
-							throttledUpdate();
-						};
-						
-						thumbnailEls.push(thumbEl);
-					}
-				} else {
-					const [fileName] = entry.split("|").map(s => s.trim());
-					let thumbEl: HTMLElement;
-					
-					if (this.isYouTubeURL(fileName)) {
-						const thumbUrl = this.getYouTubeThumbnail(fileName);
-						thumbEl = thumbnailContainer!.createEl("img", { attr: { src: thumbUrl }, cls: "thumbnail" });
-					} else if (/\.(png|jpg|jpeg|gif|svg|webp|bmp|avif)$/i.test(fileName)) {
-						thumbEl = thumbnailContainer!.createEl("img", {
-							attr: { src: this.getMediaSource(fileName) },
-							cls: "thumbnail"
-						});
 					} else {
-						const ext = fileName.split('.').pop()?.toUpperCase() || "FILE";
-						thumbEl = thumbnailContainer!.createEl("div", { text: ext });
-						thumbEl.classList.add("thumbnail-placeholder");
+						const [fileName] = entry.split("|").map(s => s.trim());
+                        const filePath = this.getMediaSource(fileName);
+                        const mediaType = await this.detectMediaType(filePath);
+
+                        let thumbEl: HTMLElement;
+                        if (mediaType === MediaType.YOUTUBE) {
+                            const thumbUrl = this.getYouTubeThumbnail(fileName);
+                            thumbEl = thumbnailContainer!.createEl("img", { attr: { src: thumbUrl }, cls: "thumbnail" });
+                        } else if (mediaType === MediaType.IMAGE) {
+                            thumbEl = thumbnailContainer!.createEl("img", {
+                                attr: { src: filePath },
+                                cls: "thumbnail"
+                            });
+                        } else {
+                            const ext = mediaType !== MediaType.UNKNOWN
+								? mediaType.toUpperCase()
+								: fileName.split('.').pop()?.toUpperCase() || "FILE";
+                            thumbEl = thumbnailContainer!.createEl("div", { text: ext });
+                            thumbEl.classList.add("thumbnail-placeholder");
+                        }
+
+                        if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
+                            thumbEl.classList.add("vertical-thumb");
+                        }
+
+                        thumbEl.tabIndex = 0;
+
+                        thumbEl.onclick = () => {
+                            currentIndex = index;
+                            throttledUpdate();
+                        };
+
+                        thumbnailEls.push(thumbEl);
 					}
-					
-					if (settings.thumbnailPosition === "left" || settings.thumbnailPosition === "right") {
-						thumbEl.classList.add("vertical-thumb");
-					}
-					
-					
-					thumbEl.tabIndex = 0;
-					
-					thumbEl.onclick = () => {
-						currentIndex = index;
-						throttledUpdate();
-					};
-					
-					thumbnailEls.push(thumbEl);
 				}
-			});
-			
-			
+			})();
+
 			thumbnailContainer.tabIndex = 0;
 		}
 
