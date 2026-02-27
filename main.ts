@@ -1105,7 +1105,7 @@ export default class MediaSliderPlugin extends Plugin {
 					? settings.compression
 					: this.settings.compressionQuality;
 
-				const mediaType = await this.detectMediaType(filePath);
+				const mediaType = await this.detectMediaType(fileName);
 
 				if (mediaType === MediaType.IMAGE) {
 					try {
@@ -1430,7 +1430,7 @@ export default class MediaSliderPlugin extends Plugin {
 					} else {
 						const [fileName] = entry.split("|").map(s => s.trim());
                         const filePath = this.getMediaSource(fileName);
-                        const mediaType = await this.detectMediaType(filePath);
+                        const mediaType = await this.detectMediaType(fileName);
 
                         let thumbEl: HTMLElement;
                         if (mediaType === MediaType.YOUTUBE) {
@@ -1570,30 +1570,33 @@ export default class MediaSliderPlugin extends Plugin {
 		
 		if (!this.keydownHandlerInitialized) {
 			document.addEventListener("keydown", (evt: KeyboardEvent) => {
-				
-				const target = evt.target as EventTarget | null;
-				if (this.activeSliderContent && target && target instanceof HTMLElement) {
-					const tag = target.tagName.toLowerCase();
-					if (tag !== 'input' && tag !== 'textarea') {
-						if (evt.key === "ArrowLeft") {
-							const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
-							if (sliderWrapper) {
-								const prevBtn = sliderWrapper.querySelector(".slider-btn.prev") as HTMLElement;
-								if (prevBtn) {
-									prevBtn.click();
-									evt.preventDefault();
-								}
-							}
-						} else if (evt.key === "ArrowRight") {
-							const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
-							if (sliderWrapper) {
-								const nextBtn = sliderWrapper.querySelector(".slider-btn.next") as HTMLElement;
-								if (nextBtn) {
-									nextBtn.click();
-									evt.preventDefault();
-								}
-							}
-						}
+				if (!this.activeSliderContent || !this.activeSliderContent.isConnected) {
+					this.activeSliderContent = null;
+					return;
+				}
+
+				const target = evt.target as HTMLElement | null;
+				if (!target) return;
+
+				// Don't intercept keys when focus is in any editable context
+				const tag = target.tagName.toLowerCase();
+				if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return;
+
+				// Only handle keys when the slider wrapper itself has focus
+				const sliderWrapper = this.activeSliderContent.closest(".media-slider-wrapper");
+				if (!sliderWrapper || !sliderWrapper.contains(target)) return;
+
+				if (evt.key === "ArrowLeft") {
+					const prevBtn = sliderWrapper.querySelector(".slider-btn.prev") as HTMLElement;
+					if (prevBtn) {
+						prevBtn.click();
+						evt.preventDefault();
+					}
+				} else if (evt.key === "ArrowRight") {
+					const nextBtn = sliderWrapper.querySelector(".slider-btn.next") as HTMLElement;
+					if (nextBtn) {
+						nextBtn.click();
+						evt.preventDefault();
 					}
 				}
 			});
@@ -1604,6 +1607,8 @@ export default class MediaSliderPlugin extends Plugin {
 				const clickedSlider = target.closest(".slider-content");
 				if (clickedSlider && !target.matches('input, textarea')) {
 					this.activeSliderContent = clickedSlider as HTMLElement;
+				} else {
+					this.activeSliderContent = null;
 				}
 			});
 
