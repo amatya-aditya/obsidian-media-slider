@@ -2,7 +2,7 @@
 {
 	"id": "media-slider",
 	"name": "Media Slider",
-	"version": "1.3.5",
+	"version": "1.3.6",
 	"minAppVersion": "1.1.0",
 	"description": "A media slider for images, gifs, audios, videos, and PDFs.",
 	"author": "Aditya Amatya",
